@@ -8,23 +8,55 @@ const PWAWelcomeLogin = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+
   const handleLogin = async (event) => {
     event.preventDefault();
-    setError(null);
-
+  
+    // Bypass login functionality for testing
     try {
-      const response = await axios.post(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/login/`, {
-        email,
-        password,
-      });
-
-      console.log(response.data);
-      localStorage.setItem('authToken', response.data.token);
-      navigate('/dashboard'); 
-    } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      // Mock successful login by storing a placeholder token
+      localStorage.setItem('authToken', 'mock-auth-token');
+      console.log('Login bypassed for testing.');
+  
+      // Navigate directly to the dashboard
+      navigate('/student');
+    } catch (error) {
+      console.error('Error during login bypass:', error);
     }
   };
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // const handleLogin = async (event) => {
+  //   event.preventDefault();
+  //   setError(null);
+
+  //   try {
+  //     const response = await axios.post(
+  //       `${process.env.REACT_APP_BASE_URL}/api-auth/v1/login/`, // Correct use of template literals
+  //       { email, password }, // The request body
+  //       { headers: { 'Content-Type': 'application/json' } } // The headers
+  //     );
+
+  //     console.log(response.data);
+  //     localStorage.setItem('authToken', response.data.token);
+  //     navigate('/dashboard'); 
+  //   } catch (err) {
+  //     setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+  //   }
+  // };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100vh', justifyContent: 'center' }}>

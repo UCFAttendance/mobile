@@ -18,7 +18,7 @@ const Login = () => {
 
       // Store token, navigate to the dashboard
       localStorage.setItem('authToken', response.data.token);
-      navigate('/dashboard');
+      navigate('/student');
 
     } catch (err) {
       // Set error message if login fails
