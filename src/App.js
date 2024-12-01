@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Home from './components/Home';
 import Login from './components/Login';
@@ -10,69 +10,23 @@ import 'react-toastify/dist/ReactToastify.css'; // Import default styles
 import StudentDashboard from './components/StudentDashboard';
 
 function App() {
-  const [isAppPWA, setIsAppPWA] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-
-  useEffect(() => {
-    setIsAppPWA(isPWA());
-
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
-
-  const handleInstallClick = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult) => {
-        setDeferredPrompt(null);
-      });
-    }
-  };
+  const isAppPWA = isPWA(); // Detect if app is running as PWA
 
   return (
     <Router>
       <div>
-        {/* ToastContainer to display notifications */}
+        {/* ToastContainer for notifications */}
         <ToastContainer
-          position="top-right" // Position of the toast
-          autoClose={3000} // Automatically close after 3 seconds
-          hideProgressBar={false} // Show progress bar
-          newestOnTop={true} // Display newest notifications on top
-          closeOnClick // Allow close on click
-          rtl={false} // Left-to-right alignment
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
           pauseOnFocusLoss
           draggable
           pauseOnHover
         />
-
-        {/* Install button for PWA */}
-        {!isAppPWA && deferredPrompt && (
-          <div style={{ textAlign: 'center', padding: '10px' }}>
-            <button
-              onClick={handleInstallClick}
-              style={{
-                padding: '10px 20px',
-                fontSize: '16px',
-                cursor: 'pointer',
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                marginTop: '10px',
-              }}
-            >
-              Install App
-            </button>
-          </div>
-        )}
 
         {/* App Routes */}
         <Routes>
