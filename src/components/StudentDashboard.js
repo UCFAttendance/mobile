@@ -5,73 +5,78 @@ import axios from 'axios';
 import Dashboard from './Dashboard';
 import Courses from './Courses';
 import Scan from './Scan';
+import ScanQR from './ScanQR';
 import History from './History';
 import Settings from './Settings';
 
 const StudentDashboard = () => {
   const [studentName, setStudentName] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
-  const [hasRedirected, setHasRedirected] = useState(false); // Track if initial redirection is done
+  const [isMobile, setIsMobile] = useState(false); 
+  const [hasRedirected, setHasRedirected] = useState(false);
   const navigate = useNavigate();
 
-  // Detect device type based on screen width
+  // Detect if the device is mobile
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768); // Mobile devices: width <= 768px
+    const detectMobileDevice = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      if (
+        /android/i.test(userAgent) ||
+        /iPad|iPhone|iPod/.test(userAgent) ||
+        (navigator.userAgentData && navigator.userAgentData.mobile)
+      ) {
+        setIsMobile(true);
+      } else {
+        setIsMobile(false);
+      }
     };
 
-    // Initial check and event listener for window resize
-    handleResize();
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize); // Cleanup on component unmount
-    };
+    detectMobileDevice();
   }, []);
 
-  // Redirect to appropriate page on initial load
+  
   useEffect(() => {
     if (!hasRedirected) {
       if (isMobile) {
-        navigate('attendance'); // Redirect to Attendance page for mobile devices
+        navigate('attendance'); 
       } else {
-        navigate('dashboard'); // Redirect to Dashboard page for PC
+        navigate('dashboard'); 
       }
-      setHasRedirected(true); // Ensure redirection happens only once
+      setHasRedirected(true); 
     }
   }, [isMobile, hasRedirected, navigate]);
 
-  // Fetch Student Name from API
+  
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
-        const token = localStorage.getItem('authToken'); // Retrieve token from localStorage
+        const token = localStorage.getItem('authToken'); 
         const response = await axios.get(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/me/`, {
           headers: {
-            Authorization: `Bearer ${token}`, // Pass the token in the header
+            Authorization: `Bearer ${token}`, 
           },
         });
-        setStudentName(response.data.name); // Assuming the API response has a `name` field
+        setStudentName(response.data.name); 
       } catch (error) {
         console.error('Error fetching student data:', error);
-        setStudentName('Student'); // Fallback name
+        setStudentName('Student'); 
       }
     };
 
     fetchStudentData();
   }, []);
 
-  // Handle Sign Out
+  
   const handleSignOut = () => {
-    localStorage.removeItem('authToken'); // Clear token
-    navigate('/'); // Redirect to login page
+    localStorage.removeItem('authToken'); 
+    navigate('/'); 
   };
 
-  // Mobile Layout
+  const renderScanComponent = <ScanQR />;
+
+  
   if (isMobile) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        {/* Main Content */}
         <div style={{ flex: 1, overflow: 'auto' }}>
           <Routes>
             <Route path="attendance" element={<Scan />} />
@@ -80,15 +85,16 @@ const StudentDashboard = () => {
           </Routes>
         </div>
 
-        {/* Mobile Bottom Navigation Bar */}
-        <nav style={{
-          display: 'flex',
-          justifyContent: 'space-around',
-          alignItems: 'center',
-          padding: '10px 0',
-          backgroundColor: '#f8f9fa',
-          borderTop: '1px solid #ddd',
-        }}>
+        <nav
+          style={{
+            display: 'flex',
+            justifyContent: 'space-around',
+            alignItems: 'center',
+            padding: '10px 0',
+            backgroundColor: '#f8f9fa',
+            borderTop: '1px solid #ddd',
+          }}
+        >
           <NavLink
             to="attendance"
             style={({ isActive }) => ({
@@ -127,41 +133,35 @@ const StudentDashboard = () => {
     );
   }
 
-  // PC Layout
+  
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
-      <nav style={{
-        width: '250px',
-        backgroundColor: '#f8f9fa',
-        borderRight: '1px solid #ddd',
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-      }}>
-        {/* Top Section */}
+      <nav
+        style={{
+          width: '250px',
+          backgroundColor: '#f8f9fa',
+          borderRight: '1px solid #ddd',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+      >
         <div>
-          {/* Team Logo */}
-          <div style={{
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-          }}>
-            <img 
-              src="/images/team-logo.png" 
-              alt="Team Logo" 
+          <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
+            <img
+              src="/images/team-logo.png"
+              alt="Team Logo"
               style={{
                 width: '50px',
                 height: 'auto',
                 borderRadius: '5px',
                 marginRight: '10px',
-              }} 
+              }}
             />
           </div>
 
-          {/* Sidebar Links */}
           <ul style={{ listStyle: 'none', padding: 0 }}>
-            {/* Dashboard Entry */}
             <li style={{ marginBottom: '15px' }}>
               <NavLink
                 to="dashboard"
@@ -179,8 +179,6 @@ const StudentDashboard = () => {
                 Dashboard
               </NavLink>
             </li>
-
-            {/* Scan Entry */}
             <li style={{ marginBottom: '15px' }}>
               <NavLink
                 to="scan"
@@ -198,8 +196,6 @@ const StudentDashboard = () => {
                 Scan
               </NavLink>
             </li>
-
-            {/* Courses Entry */}
             <li>
               <NavLink
                 to="courses"
@@ -220,22 +216,19 @@ const StudentDashboard = () => {
           </ul>
         </div>
 
-        {/* Bottom Section: Sign Out */}
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '10px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '5px',
-              cursor: 'pointer',
-            }}
-            onClick={handleSignOut}
-          >
-            <FaUserCircle style={{ fontSize: '24px', marginRight: '10px' }} />
-            <span style={{ fontSize: '16px', color: '#333' }}>{studentName || 'Student'}</span>
-          </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '10px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '5px',
+            cursor: 'pointer',
+          }}
+          onClick={handleSignOut}
+        >
+          <FaUserCircle style={{ fontSize: '24px', marginRight: '10px' }} />
+          <span style={{ fontSize: '16px', color: '#333' }}>{studentName || 'Student'}</span>
         </div>
       </nav>
 
@@ -243,7 +236,7 @@ const StudentDashboard = () => {
         <Routes>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="courses" element={<Courses />} />
-          <Route path="scan" element={<Scan />} />
+          <Route path="scan" element={renderScanComponent} />
         </Routes>
       </div>
     </div>

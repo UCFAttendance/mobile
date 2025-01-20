@@ -1,17 +1,26 @@
-import React, { useEffect, useRef, useState } from 'react';
-import QrScanner from 'qr-scanner';
+import React, { useState, useEffect } from 'react';
+import { QrReader } from 'react-qr-reader';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const ScanQR = () => {
-  const videoRef = useRef(null); // Reference for the video element
-  const qrScannerRef = useRef(null); // Reference for QrScanner instance
-  const errorShownRef = useRef(false); // To prevent multiple error toasts
-  const [scannedData, setScannedData] = useState(null); // QR code data
-  const [loading, setLoading] = useState(false); // API request state
-  const [apiCallCount, setApiCallCount] = useState(0); // Count API attempts
-  const navigate = useNavigate();
+const Scan = () => {
+  const [scannedData, setScannedData] = useState(null);
+  const [isMobile, setIsMobile] = useState(false); 
+  const errorShownRef = React.useRef(false); 
+
+  useEffect(() => {
+    
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth <= 768); 
+    };
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+    };
+  }, []);
 
   useEffect(() => {
     const startCamera = async () => {
@@ -93,25 +102,65 @@ const ScanQR = () => {
     }
   };
 
+  const handleError = (err) => {
+    console.error('QR Scanner Error:', err);
+    if (!errorShownRef.current) {
+      toast.error('Error accessing the camera. Please check permissions.');
+      errorShownRef.current = true; 
+    }
+  };
+
   return (
-    <div style={{ textAlign: 'center', padding: '20px' }}>
-      <h2>Scan QR Code</h2>
-      <div style={{ marginTop: '20px', maxWidth: '800px', margin: 'auto' }}>
-        {/* Video element for camera feed */}
-        <video
-          ref={videoRef}
-          style={{
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden', 
+        margin: '0',
+        padding: '0',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {!isMobile && (
+        <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>QR Scanner</h2>
+      )}
+      <div
+        style={{
+          width: isMobile ? '100%' : '800px',
+          height: isMobile ? '100%' : '600px',
+          border: '2px solid #ddd',
+          borderRadius: '10px',
+          overflow: 'hidden', 
+        }}
+      >
+        <QrReader
+          constraints={{
+            video: { facingMode: 'environment' },
+          }}
+          onResult={(result, error) => {
+            if (result) handleScan(result);
+            if (error) handleError(error);
+          }}
+          containerStyle={{
             width: '100%',
-            height: '600px',
-            border: '2px solid #ddd',
-            borderRadius: '10px',
+            height: '100%', 
           }}
           playsInline
         />
       </div>
       {loading && <p>Processing...</p>}
       {scannedData && (
-        <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '18px' }}>
+        <p
+          style={{
+            marginTop: '20px',
+            textAlign: 'center',
+            fontSize: '18px',
+            width: isMobile ? '90%' : 'auto', 
+          }}
+        >
           <strong>Scanned Data:</strong> {scannedData}
         </p>
       )}

@@ -5,11 +5,14 @@ const Dashboard = () => {
   const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
+
+
     // Check if authenticated token is available
+    
     const token = localStorage.getItem('authToken');
     if (!token) {
       console.warn('No auth token found. Redirecting to login.');
-      window.location.href = '/login'; // Redirect to login if no token
+      window.location.href = '/login'; 
     }
   }, []);
 
