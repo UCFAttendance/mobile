@@ -11,11 +11,10 @@ import Settings from './Settings';
 
 const StudentDashboard = () => {
   const [studentName, setStudentName] = useState('');
-  const [isMobile, setIsMobile] = useState(false); 
+  const [isMobile, setIsMobile] = useState(false);
   const [hasRedirected, setHasRedirected] = useState(false);
   const navigate = useNavigate();
 
-  // Detect if the device is mobile
   useEffect(() => {
     const detectMobileDevice = () => {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
@@ -33,50 +32,69 @@ const StudentDashboard = () => {
     detectMobileDevice();
   }, []);
 
-  
   useEffect(() => {
     if (!hasRedirected) {
       if (isMobile) {
-        navigate('attendance'); 
+        navigate('attendance');
       } else {
-        navigate('dashboard'); 
+        navigate('dashboard');
       }
-      setHasRedirected(true); 
+      setHasRedirected(true);
     }
   }, [isMobile, hasRedirected, navigate]);
 
-  
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
-        const token = localStorage.getItem('authToken'); 
+        const token = localStorage.getItem('authToken');
         const response = await axios.get(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/me/`, {
           headers: {
-            Authorization: `Bearer ${token}`, 
+            Authorization: `Bearer ${token}`,
           },
         });
-        setStudentName(response.data.name); 
+        setStudentName(response.data.name);
       } catch (error) {
         console.error('Error fetching student data:', error);
-        setStudentName('Student'); 
+        setStudentName('Student');
       }
     };
 
     fetchStudentData();
   }, []);
 
-  
   const handleSignOut = () => {
-    localStorage.removeItem('authToken'); 
-    navigate('/'); 
+    localStorage.removeItem('authToken');
+    navigate('/');
   };
 
   const renderScanComponent = <ScanQR />;
 
-  
   if (isMobile) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div
+          style={{
+            padding: '10px',
+            backgroundColor: '#f8f9fa',
+            display: 'flex',
+            alignItems: 'center',
+            borderBottom: '1px solid #ddd',
+          }}
+        >
+          <img
+            src="/images/team-logo.png"
+            alt="Team Logo"
+            onError={(e) => (e.target.src = '/default-icon.png')} // Fallback icon
+            style={{
+              width: '40px',
+              height: 'auto',
+              borderRadius: '5px',
+              marginRight: '10px',
+            }}
+          />
+          <h3 style={{ margin: 0, color: '#333', fontSize: '18px' }}>App Name</h3>
+        </div>
+
         <div style={{ flex: 1, overflow: 'auto' }}>
           <Routes>
             <Route path="attendance" element={<Scan />} />
@@ -133,7 +151,6 @@ const StudentDashboard = () => {
     );
   }
 
-  
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <nav
@@ -152,6 +169,7 @@ const StudentDashboard = () => {
             <img
               src="/images/team-logo.png"
               alt="Team Logo"
+              onError={(e) => (e.target.src = '/default-icon.png')} // Fallback icon
               style={{
                 width: '50px',
                 height: 'auto',
@@ -159,6 +177,7 @@ const StudentDashboard = () => {
                 marginRight: '10px',
               }}
             />
+            <h3 style={{ margin: 0, color: '#333' }}>App Name</h3>
           </div>
 
           <ul style={{ listStyle: 'none', padding: 0 }}>
@@ -196,7 +215,7 @@ const StudentDashboard = () => {
                 Scan
               </NavLink>
             </li>
-            <li>
+            <li style={{ marginBottom: '15px' }}> {/* Increased margin for spacing */}
               <NavLink
                 to="courses"
                 style={({ isActive }) => ({
@@ -211,6 +230,23 @@ const StudentDashboard = () => {
               >
                 <FaBook style={{ marginRight: '10px', fontSize: '18px' }} />
                 Courses
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="settings"
+                style={({ isActive }) => ({
+                  textDecoration: 'none',
+                  color: isActive ? '#007bff' : '#333',
+                  backgroundColor: isActive ? '#dee2e6' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '10px',
+                  borderRadius: '5px',
+                })}
+              >
+                <FaCog style={{ marginRight: '10px', fontSize: '18px' }} />
+                Settings
               </NavLink>
             </li>
           </ul>
@@ -237,6 +273,7 @@ const StudentDashboard = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="courses" element={<Courses />} />
           <Route path="scan" element={renderScanComponent} />
+          <Route path="settings" element={<Settings />} />
         </Routes>
       </div>
     </div>
