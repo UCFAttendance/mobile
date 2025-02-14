@@ -30,6 +30,7 @@ function App() {
 
         {/* App Routes */}
         <Routes>
+          <Route path="/" element={isAppPWA ? <PWAWelcomeLogin /> : <Home />} />
           <Route path="/" element={<PWAWelcomeLogin />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />

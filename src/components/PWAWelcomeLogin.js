@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const PWAWelcomeLogin = () => {
   const [email, setEmail] = useState('');
@@ -17,18 +18,54 @@ const PWAWelcomeLogin = () => {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
+  // Function to handle login API call
   const handleLogin = async (event) => {
     event.preventDefault();
-
+    setError(null);
+  
+    console.log("Login request payload:", JSON.stringify({ email, password }));
+  
     try {
-      // Mock successful login for testing
-      localStorage.setItem('authToken', 'mock-auth-token');
-      console.log('Login bypassed for testing.');
-      navigate('/student');
+      const response = await axios.post(
+        `${process.env.REACT_APP_BASE_URL}/api-auth/v1/login/`,
+        { email, password },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        }
+      );
+  
+      console.log("Full API Response:", response);
+      console.log("Response Data:", response.data); 
+      console.log("Response Status:", response.status);
+  
+      if (response.status === 200 && response.data.access) {
+        localStorage.setItem('authToken', response.data.access); // Store correct token
+        localStorage.setItem('refreshToken', response.data.refresh);
+        localStorage.setItem('userId', response.data.user.id); // Store user ID
+  
+        console.log('Stored authToken:', response.data.access);
+        console.log('Stored userId:', response.data.user.id);
+  
+        navigate('/student'); // Redirect after login
+      } else {
+        console.error("Login failed: Unexpected response structure.");
+        console.error("Response Data:", response.data);
+        setError('Login failed. Please check your credentials.');
+      }
     } catch (error) {
-      console.error('Error during login bypass:', error);
+      console.error("Login failed:", error.response ? error.response.data : error.message);
+      setError(error.response?.data?.detail || 'Login failed. Please check your credentials.');
     }
   };
+  
+  
+  
+
+  // Function to retrieve the stored token (can be used for future requests)
+  const getAuthToken = () => localStorage.getItem('authToken');
 
   return (
     <div
@@ -101,7 +138,7 @@ const PWAWelcomeLogin = () => {
               borderRadius: '6px',
               border: '1px solid #ccc',
               fontSize: isMobile ? '16px' : '18px',
-              boxSizing: 'border-box', // Ensures width includes padding and border
+              boxSizing: 'border-box',
             }}
           />
         </div>
@@ -148,7 +185,7 @@ const PWAWelcomeLogin = () => {
               borderRadius: '6px',
               border: '1px solid #ccc',
               fontSize: isMobile ? '16px' : '18px',
-              boxSizing: 'border-box', // Ensures width includes padding and border
+              boxSizing: 'border-box',
             }}
           />
         </div>
@@ -157,7 +194,7 @@ const PWAWelcomeLogin = () => {
         <button
           type="submit"
           style={{
-            width: '100%', // Match the input fields
+            width: '100%',
             padding: isMobile ? '12px' : '14px',
             fontSize: isMobile ? '16px' : '18px',
             backgroundColor: '#0066cc',

@@ -45,22 +45,44 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     const fetchStudentData = async () => {
-      try {
-        const token = localStorage.getItem('authToken');
-        const response = await axios.get(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/me/`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setStudentName(response.data.name);
-      } catch (error) {
-        console.error('Error fetching student data:', error);
-        setStudentName('Student');
-      }
+        try {
+            const authToken = localStorage.getItem('authToken');
+            const userId = localStorage.getItem('userId');
+
+            console.log("Retrieved authToken:", authToken);
+            console.log("Retrieved userId:", userId);
+
+            if (!authToken) {
+                console.error("No auth token found! User might not be logged in.");
+                navigate('/'); // Redirect to login page if no token
+                return;
+            }
+
+            if (!userId) {
+                console.error("No user ID found! API request might fail.");
+            }
+
+            // Ensure API URL does not include "undefined"
+            const apiUrl = `${process.env.REACT_APP_BASE_URL}/api-auth/v1/me/`;
+            console.log("Fetching student data from:", apiUrl);
+
+            const response = await axios.get(apiUrl, {
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                },
+            });
+
+            console.log("Student API Response:", response.data);
+            setStudentName(response.data.name);
+        } catch (error) {
+            console.error("Error fetching student data:", error.response ? error.response.data : error.message);
+            setStudentName('Student');
+        }
     };
 
     fetchStudentData();
-  }, []);
+}, []);
+
 
   const handleSignOut = () => {
     localStorage.removeItem('authToken');
@@ -92,7 +114,7 @@ const StudentDashboard = () => {
               marginRight: '10px',
             }}
           />
-          <h3 style={{ margin: 0, color: '#333', fontSize: '18px' }}>App Name</h3>
+          <h3 style={{ margin: 0, color: '#333', fontSize: '18px' }}>UCF Attendance</h3>
         </div>
 
         <div style={{ flex: 1, overflow: 'auto' }}>
