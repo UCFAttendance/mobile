@@ -9,10 +9,10 @@ const Dashboard = () => {
 
     // Check if authenticated token is available
     
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
     if (!token) {
       console.warn('No auth token found. Redirecting to login.');
-      window.location.href = '/login'; 
+      window.location.href = '/'; 
     }
   }, []);
 

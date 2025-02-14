@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Home from './components/Home';
-import Login from './components/Login';
+// import Login from './components/Login';
 import PWAWelcomeLogin from './components/PWAWelcomeLogin';
 import Dashboard from './components/Dashboard';
 import { isPWA } from './utils/detectPWA';
@@ -31,7 +31,7 @@ function App() {
         {/* App Routes */}
         <Routes>
           <Route path="/" element={<PWAWelcomeLogin />} />
-          <Route path="/login" element={<Login />} />
+          {/* <Route path="/login" element={<Login />} /> */}
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/student/*" element={<StudentDashboard />} />
         </Routes>

@@ -1,0 +1,213 @@
+/* 
+   We now have 3 pages horizontally:
+   pageIndex=0 => Courses
+   pageIndex=1 => Details
+   pageIndex=2 => Calendar
+
+   .history-container: width=300vw 
+   transform: translateX(-pageIndex*100vw) for sliding
+*/
+.history-container {
+    width: 300vw !important;
+    height: 100vh !important;
+    display: flex !important;
+    transition: transform 0.3s ease !important;
+    overflow: hidden !important; /* ensure no scrollbars horizontally */
+  }
+  
+  /* Each .page is 1 viewport wide, lined up horizontally */
+  .page {
+    width: 100vw !important;
+    height: 100vh !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+    background-color: #f5f5f5 !important;
+    padding: 20px !important;
+  }
+  
+  /* ========== COURSES (pageIndex=0) ========== */
+  .course-list .vertical-courses {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+    align-items: center !important;
+  }
+  .course-widget {
+    width: 80% !important;
+    max-width: 400px !important;
+    height: 60px !important;
+    background-color: #d4a72c !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .course-text {
+    color: white !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+  }
+  
+  /* ========== DETAILS PAGE (pageIndex=1) ========== */
+  .course-details {
+    position: relative !important;
+  }
+  .top-bar {
+    display: flex !important;
+    align-items: center !important;
+    margin-bottom: 15px !important;
+  }
+  .icon {
+    color: #d4a72c !important;
+    cursor: pointer !important;
+    margin-right: 15px !important;
+  }
+  /* Make the back icon bigger, push it down a bit with margin-top */
+  .back-icon {
+    font-size: 32px !important;
+    margin-top: 10px !important;
+  }
+  .calendar-icon {
+    font-size: 28px !important;
+    margin-top: 10px !important;
+  }
+  .details-content {
+    margin-top: 5px !important;
+  }
+  /* Circle */
+  .progress-circle {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    margin-bottom: 20px !important;
+  }
+  .progress-inner {
+    width: 200px !important;
+    height: 200px !important;
+    border-radius: 50% !important;
+    position: relative !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+  .progress-content {
+    position: absolute !important;
+    width: 160px !important;
+    height: 160px !important;
+    border-radius: 50% !important;
+    background-color: #fff !important;
+    box-shadow: inset 0 4px 6px rgba(0,0,0,0.1) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding-top: 10px !important;
+  }
+  .progress-content h3 {
+    margin: 0 !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+  }
+  
+  /* Attendance list */
+  .attendance-list h3 {
+    text-align: center !important;
+    margin-bottom: 15px !important;
+  }
+  .attendance-item {
+    background-color: #fff !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    padding: 10px !important;
+    margin-bottom: 10px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+  .attendance-date {
+    font-weight: 600 !important;
+    color: #333 !important;
+  }
+  .status-pill {
+    border: 2px solid #ccc !important;
+    border-radius: 16px !important;
+    padding: 4px 12px !important;
+    font-weight: 600 !important;
+    text-transform: capitalize !important;
+  }
+  .status-pill.present {
+    color: #4caf50 !important;
+    border-color: #4caf50 !important;
+  }
+  .status-pill.absent {
+    color: #f44336 !important;
+    border-color: #f44336 !important;
+  }
+  
+  /* ========== CALENDAR PAGE (pageIndex=2) ========== */
+  .course-calendar {
+    position: relative !important;
+  }
+  .calendar-container {
+    background-color: #fff !important;
+    border-radius: 8px !important;
+    padding: 15px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+  }
+  .calendar-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 10px !important;
+    font-weight: 600 !important;
+  }
+  .month-label {
+    font-size: 16px !important;
+    margin-right: 10px !important;
+  }
+  .year-label {
+    font-size: 16px !important;
+    margin-left: 10px !important;
+    opacity: 0.7 !important;
+  }
+  .right-link {
+    font-size: 14px !important;
+    color: #007aff !important;
+    cursor: pointer !important;
+  }
+  /* Days of week row */
+  .days-of-week {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    margin-bottom: 5px !important;
+  }
+  .dates-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    row-gap: 15px !important;
+    text-align: center !important;
+  }
+  .date-cell {
+    width: 100% !important;
+    height: 40px !important;
+    position: relative !important;
+    font-size: 14px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+  .calendar-events {
+    margin-top: 15px !important;
+  }
+  .event {
+    background-color: #f2f2f2 !important;
+    padding: 10px !important;
+    margin-bottom: 10px !important;
+    border-left: 4px solid #d4a72c !important;
+  }
+  

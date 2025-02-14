@@ -1,176 +1,246 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useState, useRef, useEffect } from "react";
 
 const Courses = () => {
   const [courses, setCourses] = useState([]);
+  const [expandedCourseId, setExpandedCourseId] = useState(null);
+  const [attendanceRecords, setAttendanceRecords] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedCourseId, setExpandedCourseId] = useState(null); 
-  const [attendanceHistory, setAttendanceHistory] = useState([]); 
 
-
-
-
+  // Fetch attendance data from API
   useEffect(() => {
-
-
-    // Temporary mock data while the backend is down
-    const mockCourses = [
-      { id: 1, name: 'COT 3100 - Fall 23' },
-      { id: 2, name: 'CNT 4900 - Fall 23' },
-      { id: 3, name: 'COP 3330 - Spring 24' },
-      { id: 4, name: 'CIS 4365 - Summer 24' },
-    ];
-
-    const fetchCourses = async () => {
+    const fetchAttendanceData = async () => {
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setCourses(mockCourses);
+        const token = localStorage.getItem('accessToken'); // Get the stored auth token
+        const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch attendance data.");
+        }
+
+        const attendanceData = await response.json();
+
+        // Extract unique course names from attendance data
+        const uniqueCourses = {};
+        attendanceData.forEach(entry => {
+          const courseId = entry.session_id.course_id.id;
+          const courseName = entry.session_id.course_id.name;
+          if (!uniqueCourses[courseId]) {
+            uniqueCourses[courseId] = { id: courseId, name: courseName };
+          }
+        });
+
+        setCourses(Object.values(uniqueCourses)); // Convert object back to array
+        setLoading(false);
       } catch (err) {
-        setError('Failed to load courses. Please try again.');
-      } finally {
+        console.error("Error fetching attendance data:", err);
+        setError("Unable to load courses.");
         setLoading(false);
       }
     };
 
-    fetchCourses();
+    fetchAttendanceData();
   }, []);
 
-  const handleViewClick = async (courseId) => {
+  // Fetch attendance records when expanding a course
+  const handleToggleExpand = async (courseId) => {
     if (expandedCourseId === courseId) {
-
       setExpandedCourseId(null);
-      return;
-    }
+    } else {
+      if (!attendanceRecords[courseId]) {
+        const token = localStorage.getItem('accessToken');
+        try {
+          const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
 
-    try {
+          if (!response.ok) {
+            throw new Error("Failed to fetch attendance records.");
+          }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const mockHistory = [
-        { date: '2023-09-01', status: 'Present' },
-        { date: '2023-09-02', status: 'Absent' },
-        { date: '2023-09-03', status: 'Present' },
-      ];
+          const attendanceData = await response.json();
 
-      setAttendanceHistory(mockHistory);
-      setExpandedCourseId(courseId); 
-    } catch (error) {
-      console.error('Error fetching attendance history:', error);
-      setAttendanceHistory([
-        { date: 'Mock-01', status: 'Present' },
-        { date: 'Mock-02', status: 'Absent' },
-      ]);
+          // Filter attendance records for the selected course
+          const filteredAttendance = attendanceData
+            .filter(entry => entry.session_id.course_id.id === courseId)
+            .map(entry => ({
+              date: new Date(entry.created_at).toLocaleDateString(), // Format date
+              status: entry.is_present ? "Present" : "Absent",
+            }));
+
+          setAttendanceRecords((prev) => ({
+            ...prev,
+            [courseId]: filteredAttendance,
+          }));
+        } catch (err) {
+          console.error("Error fetching attendance records:", err);
+        }
+      }
       setExpandedCourseId(courseId);
     }
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ margin: 0 }}>Courses</h2>
-        <button
-          style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            padding: '10px 20px',
-            cursor: 'pointer',
-          }}
-        >
-          Add Course
-        </button>
-      </div>
+    <div style={{ padding: "20px" }}>
+      <h2 style={{ marginBottom: "20px" }}>Courses</h2>
 
-      {/* Loading State */}
-      {loading && <p>Loading courses...</p>}
-
-      {/* Error State */}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {/* Courses Table */}
-      {!loading && !error && (
+      {loading ? (
+        <p>Loading courses...</p>
+      ) : error ? (
+        <p style={{ color: "red" }}>{error}</p>
+      ) : (
         <table
           style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+            width: "100%",
+            borderCollapse: "collapse",
+            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
           }}
         >
           <thead
             style={{
-              backgroundColor: '#f8f9fa',
-              textAlign: 'left',
-              borderBottom: '2px solid #ddd',
+              backgroundColor: "#f8f9fa",
+              textAlign: "left",
+              borderBottom: "2px solid #ddd",
             }}
           >
             <tr>
-              <th style={{ padding: '15px', fontWeight: '600' }}>Course ID</th>
-              <th style={{ padding: '15px', fontWeight: '600' }}>Name</th>
-              <th style={{ padding: '15px', fontWeight: '600', textAlign: 'center' }}>Action</th>
+              <th style={{ padding: "10px", fontWeight: "600" }}>Course ID</th>
+              <th style={{ padding: "10px", fontWeight: "600" }}>Name</th>
+              <th style={{ padding: "10px", fontWeight: "600", textAlign: "center" }}>Action</th>
             </tr>
           </thead>
           <tbody>
-            {courses.map((course, index) => (
-              <React.Fragment key={course.id}>
-                {/* Main Course Row */}
-                <tr
-                  style={{
-                    borderBottom: '1px solid #ddd',
-                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9f9f9',
-                  }}
-                >
-                  <td style={{ padding: '15px' }}>{course.id}</td>
-                  <td style={{ padding: '15px' }}>{course.name}</td>
-                  <td style={{ padding: '15px', textAlign: 'center' }}>
-                    <button
-                      onClick={() => handleViewClick(course.id)}
-                      style={{
-                        backgroundColor: '#007bff',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '5px 10px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {expandedCourseId === course.id ? 'Close' : 'View'}
-                    </button>
-                  </td>
-                </tr>
-
-                {/* Attendance History Row */}
-                {expandedCourseId === course.id && (
-                  <tr style={{ transition: 'all 0.3s ease' }}>
-                    <td colSpan="3" style={{ padding: '15px', backgroundColor: '#f1f1f1' }}>
-                      <strong>Attendance History</strong>
-                      <table style={{ width: '100%', marginTop: '10px', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid #ddd' }}>
-                            <th style={{ padding: '8px', textAlign: 'left' }}>Date</th>
-                            <th style={{ padding: '8px', textAlign: 'left' }}>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {attendanceHistory.map((entry, idx) => (
-                            <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#fff' : '#f8f9fa' }}>
-                              <td style={{ padding: '8px' }}>{entry.date}</td>
-                              <td style={{ padding: '8px' }}>{entry.status}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+            {courses.length > 0 ? (
+              courses.map((course) => (
+                <React.Fragment key={course.id}>
+                  <tr
+                    style={{
+                      borderBottom: "1px solid #ddd",
+                      backgroundColor: "#ffffff",
+                    }}
+                  >
+                    <td style={{ padding: "10px" }}>{course.id}</td>
+                    <td style={{ padding: "10px" }}>{course.name}</td>
+                    <td style={{ padding: "10px", textAlign: "center" }}>
+                      <button
+                        onClick={() => handleToggleExpand(course.id)}
+                        style={{
+                          backgroundColor: "#007bff",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          padding: "5px 10px",
+                          cursor: "pointer",
+                          transition: "background-color 0.3s ease",
+                        }}
+                      >
+                        {expandedCourseId === course.id ? "Close" : "View"}
+                      </button>
                     </td>
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
+                  <ExpandableRow
+                    isExpanded={expandedCourseId === course.id}
+                    content={
+                      <div
+                        style={{
+                          marginTop: "15px",
+                          marginBottom: "15px",
+                          display: "flex",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {attendanceRecords[course.id] ? (
+                          <table
+                            style={{
+                              width: "90%",
+                              borderCollapse: "collapse",
+                              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                            }}
+                          >
+                            <thead>
+                              <tr
+                                style={{
+                                  backgroundColor: "#f8f9fa",
+                                  borderBottom: "2px solid #ddd",
+                                }}
+                              >
+                                <th style={{ textAlign: "left", padding: "8px", fontWeight: "600" }}>Date</th>
+                                <th style={{ textAlign: "left", padding: "8px", fontWeight: "600" }}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {attendanceRecords[course.id].map((record, index) => (
+                                <tr
+                                  key={index}
+                                  style={{
+                                    backgroundColor: index % 2 === 0 ? "#ffffff" : "#f9f9f9",
+                                    borderBottom: "1px solid #ddd",
+                                  }}
+                                >
+                                  <td style={{ padding: "8px" }}>{record.date}</td>
+                                  <td style={{ padding: "8px" }}>{record.status}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p>Loading attendance records...</p>
+                        )}
+                      </div>
+                    }
+                  />
+                </React.Fragment>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="3" style={{ textAlign: "center", padding: "10px" }}>No courses found.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}
     </div>
+  );
+};
+
+const ExpandableRow = ({ isExpanded, content }) => {
+  const contentRef = useRef(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.style.maxHeight = isExpanded
+        ? `${contentRef.current.scrollHeight}px`
+        : "0";
+    }
+  }, [isExpanded]);
+
+  return (
+    <tr style={{ backgroundColor: "#f1f1f1", borderBottom: isExpanded ? "1px solid #ddd" : "none" }}>
+      <td colSpan="3" style={{ border: "none", padding: "0" }}>
+        <div
+          ref={contentRef}
+          style={{
+            overflow: "hidden",
+            maxHeight: "0",
+            transition: "max-height 0.3s ease-out",
+            padding: "0 10px",
+            boxSizing: "border-box",
+          }}
+        >
+          {content}
+        </div>
+      </td>
+    </tr>
   );
 };
 

@@ -5,28 +5,51 @@ const PWAWelcomeLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Detect if the device is mobile based on screen width
     const checkIfMobile = () => setIsMobile(window.innerWidth <= 768);
     checkIfMobile();
     window.addEventListener('resize', checkIfMobile);
-
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
+  const BASE_URL = process.env.REACT_APP_BASE_URL;
+  
   const handleLogin = async (event) => {
     event.preventDefault();
-
+    setError(null);
+    setLoading(true);
+  
     try {
-      // Mock successful login for testing
-      localStorage.setItem('authToken', 'mock-auth-token');
-      console.log('Login bypassed for testing.');
-      navigate('/student');
+      const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/login/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.detail || 'Login failed. Please check your credentials.');
+      }
+  
+      // Store tokens and user info in localStorage
+      localStorage.setItem('accessToken', data.access);
+      localStorage.setItem('refreshToken', data.refresh);
+      localStorage.setItem('user', JSON.stringify(data.user)); // Store user object as a string
+  
+      console.log('Login successful:', data.user);
+      navigate('/student');  // Redirect to student dashboard
     } catch (error) {
-      console.error('Error during login bypass:', error);
+      console.error('Login error:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -44,7 +67,6 @@ const PWAWelcomeLogin = () => {
         padding: isMobile ? '0 15px' : '0 20px',
       }}
     >
-      {/* Team Logo */}
       <img
         src="/images/team-logo.png"
         alt="Team Logo"
@@ -54,8 +76,6 @@ const PWAWelcomeLogin = () => {
           marginBottom: isMobile ? '20px' : '30px',
         }}
       />
-
-      {/* Title */}
       <h2
         style={{
           fontSize: isMobile ? '22px' : '28px',
@@ -67,7 +87,6 @@ const PWAWelcomeLogin = () => {
         Sign in to your account
       </h2>
 
-      {/* Form */}
       <form
         onSubmit={handleLogin}
         style={{
@@ -76,7 +95,6 @@ const PWAWelcomeLogin = () => {
           flexDirection: 'column',
         }}
       >
-        {/* Email Field */}
         <div style={{ marginBottom: isMobile ? '15px' : '20px', width: '100%' }}>
           <label
             htmlFor="email"
@@ -101,12 +119,11 @@ const PWAWelcomeLogin = () => {
               borderRadius: '6px',
               border: '1px solid #ccc',
               fontSize: isMobile ? '16px' : '18px',
-              boxSizing: 'border-box', // Ensures width includes padding and border
+              boxSizing: 'border-box',
             }}
           />
         </div>
 
-        {/* Password Field */}
         <div style={{ marginBottom: isMobile ? '20px' : '30px', width: '100%' }}>
           <div
             style={{
@@ -148,31 +165,30 @@ const PWAWelcomeLogin = () => {
               borderRadius: '6px',
               border: '1px solid #ccc',
               fontSize: isMobile ? '16px' : '18px',
-              boxSizing: 'border-box', // Ensures width includes padding and border
+              boxSizing: 'border-box',
             }}
           />
         </div>
 
-        {/* Sign In Button */}
         <button
           type="submit"
+          disabled={loading}
           style={{
-            width: '100%', // Match the input fields
+            width: '100%',
             padding: isMobile ? '12px' : '14px',
             fontSize: isMobile ? '16px' : '18px',
-            backgroundColor: '#0066cc',
+            backgroundColor: loading ? '#999' : '#0066cc',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
-            cursor: 'pointer',
+            cursor: loading ? 'not-allowed' : 'pointer',
             marginTop: '10px',
           }}
         >
-          Sign in
+          {loading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
 
-      {/* Error Message */}
       {error && (
         <p style={{ color: 'red', marginTop: '20px', textAlign: 'center' }}>
           {error}
