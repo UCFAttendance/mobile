@@ -7,46 +7,71 @@ const Courses = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch attendance data from API
-  useEffect(() => {
-    const fetchAttendanceData = async () => {
-      try {
-        const token = localStorage.getItem('accessToken'); // Get the stored auth token
-        const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
-          method: 'GET',
+// Fetch attendance data from API
+useEffect(() => {
+  const fetchAttendanceData = async () => {
+    try {
+      let token = localStorage.getItem("accessToken"); // Get the stored auth token
+      let response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 401) {
+        // Token expired, attempt to refresh
+        const refreshToken = localStorage.getItem("refreshToken");
+        if (!refreshToken) throw new Error("No refresh token available.");
+
+        const refreshResponse = await fetch(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh: refreshToken }),
+        });
+
+        if (!refreshResponse.ok) throw new Error("Failed to refresh token.");
+
+        const refreshData = await refreshResponse.json();
+        token = refreshData.access; // New access token
+        localStorage.setItem("accessToken", token); // Store new token
+
+        // Retry fetching attendance data with the new token
+        response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
+          method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch attendance data.");
-        }
-
-        const attendanceData = await response.json();
-
-        // Extract unique course names from attendance data
-        const uniqueCourses = {};
-        attendanceData.forEach(entry => {
-          const courseId = entry.session_id.course_id.id;
-          const courseName = entry.session_id.course_id.name;
-          if (!uniqueCourses[courseId]) {
-            uniqueCourses[courseId] = { id: courseId, name: courseName };
-          }
-        });
-
-        setCourses(Object.values(uniqueCourses)); // Convert object back to array
-        setLoading(false);
-      } catch (err) {
-        console.error("Error fetching attendance data:", err);
-        setError("Unable to load courses.");
-        setLoading(false);
+        if (!response.ok) throw new Error("Failed to fetch attendance data after token refresh.");
       }
-    };
 
-    fetchAttendanceData();
-  }, []);
+      const attendanceData = await response.json();
+
+      // Extract unique course names from attendance data
+      const uniqueCourses = {};
+      attendanceData.forEach((entry) => {
+        const courseId = entry.session_id.course_id.id;
+        const courseName = entry.session_id.course_id.name;
+        if (!uniqueCourses[courseId]) {
+          uniqueCourses[courseId] = { id: courseId, name: courseName };
+        }
+      });
+
+      setCourses(Object.values(uniqueCourses)); // Convert object back to array
+      setLoading(false);
+    } catch (err) {
+      console.error("Error fetching attendance data:", err);
+      setError("Unable to load courses.");
+      setLoading(false);
+    }
+  };
+
+  fetchAttendanceData();
+}, []);
 
   // Fetch attendance records when expanding a course
   const handleToggleExpand = async (courseId) => {

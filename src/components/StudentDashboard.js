@@ -76,49 +76,61 @@ const StudentDashboard = () => {
           </Routes>
         </div>
         <nav style={{
-          display: 'flex',
-          justifyContent: 'space-around',
-          alignItems: 'center',
-          padding: '10px 0',
-          backgroundColor: '#f8f9fa',
-          borderTop: '1px solid #ddd',
-        }}>
-          <NavLink to="dashboard" style={({ isActive }) => ({
-            textAlign: 'center',
-            color: isActive ? '#007bff' : '#333',
-            textDecoration: 'none',
-          })}>
-            <FaHome size={24} />
-            <p style={{ fontSize: '12px', marginTop: '5px' }}>Dashboard</p>
-          </NavLink>
+  display: 'flex',
+  justifyContent: 'space-around',
+  alignItems: 'center',
+  padding: '5px 0', // Increased padding to maintain navbar position
+  backgroundColor: '#ffffff',
+  borderTop: '2px solid #E0E0E0',
+}}>
+  <NavLink to="dashboard" style={({ isActive }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    color: isActive ? '#007bff' : '#333',
+    textDecoration: 'none',
+    paddingTop: '3px', // Moves content down without shifting navbar
+  })}>
+    <FaHome size={24} />
+    <p style={{ fontSize: '12px', marginTop: '2px',  marginBottom: '7px' }}>Dashboard</p>
+  </NavLink>
 
-          <NavLink to="attendance" style={({ isActive }) => ({
-            textAlign: 'center',
-            color: isActive ? '#007bff' : '#333',
-            textDecoration: 'none',
-          })}>
-            <FaQrcode size={24} />
-            <p style={{ fontSize: '12px', marginTop: '5px' }}>Attendance</p>
-          </NavLink>
+  <NavLink to="attendance" style={({ isActive }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    color: isActive ? '#007bff' : '#333',
+    textDecoration: 'none',
+    paddingTop: '3px', // Moves content down without shifting navbar
+  })}>
+    <FaQrcode size={24} />
+    <p style={{ fontSize: '12px', marginTop: '3px',  marginBottom: '7px' }}>Attendance</p>
+  </NavLink>
 
-          <NavLink to="history" style={({ isActive }) => ({
-            textAlign: 'center',
-            color: isActive ? '#007bff' : '#333',
-            textDecoration: 'none',
-          })}>
-            <FaHistory size={24} />
-            <p style={{ fontSize: '12px', marginTop: '5px' }}>History</p>
-          </NavLink>
+  <NavLink to="history" style={({ isActive }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    color: isActive ? '#007bff' : '#333',
+    textDecoration: 'none',
+    paddingTop: '3px', // Moves content down without shifting navbar
+  })}>
+    <FaHistory size={24} />
+    <p style={{ fontSize: '12px', marginTop: '3px',  marginBottom: '7px' }}>History</p>
+  </NavLink>
 
-          <NavLink to="settings" style={({ isActive }) => ({
-            textAlign: 'center',
-            color: isActive ? '#007bff' : '#333',
-            textDecoration: 'none',
-          })}>
-            <FaCog size={24} />
-            <p style={{ fontSize: '12px', marginTop: '5px' }}>Settings</p>
-          </NavLink>
-        </nav>
+  {/* <NavLink to="settings" style={({ isActive }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    color: isActive ? '#007bff' : '#333',
+    textDecoration: 'none',
+    paddingTop: '3px', // Moves content down without shifting navbar
+  })}>
+    <FaCog size={24} />
+    <p style={{ fontSize: '12px', marginTop: '3px',  marginBottom: '7px'}}>Settings</p>
+  </NavLink> */}
+</nav>
       </div>
     );
   }

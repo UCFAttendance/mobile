@@ -23,8 +23,8 @@ const MobileDashboard = () => {
     // Fetch courses and attendance grades
     const fetchAttendanceData = async () => {
       try {
-        const token = localStorage.getItem("accessToken");
-        const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
+        let token = localStorage.getItem("accessToken");
+        let response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -32,10 +32,46 @@ const MobileDashboard = () => {
           },
         });
 
-        if (!response.ok) {
-          setShouldScroll(false);
-          throw new Error("Failed to fetch attendance data.");
+        if (response.status === 401) {
+          // Token expired, attempt to refresh
+          const refreshToken = localStorage.getItem("refreshToken");
+          if (!refreshToken) throw new Error("No refresh token available.");
+  
+          const refreshResponse = await fetch(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh: refreshToken }),
+          });
+  
+          if (!refreshResponse.ok) throw new Error("Failed to refresh token.");
+  
+          const refreshData = await refreshResponse.json();
+          token = refreshData.access; // New access token
+          localStorage.setItem("accessToken", token); // Store new token
+  
+          // Retry fetching attendance data with the new token
+          response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+  
+          if (!response.ok) throw new Error("Failed to fetch attendance data after token refresh.");
         }
+
+
+
+
+
+
+
+
+        // if (!response.ok) {
+        //   setShouldScroll(false);
+        //   throw new Error("Failed to fetch attendance data.");
+        // }
 
         const attendanceData = await response.json();
 
@@ -74,7 +110,7 @@ const MobileDashboard = () => {
   return (
     <div
       style={{
-        backgroundColor: "#fdf4e3",
+        backgroundColor: "#ffffff",
         height: "100vh",
         overflowY: shouldScroll ? "auto" : "hidden",
         overflowX: "hidden",
@@ -87,44 +123,36 @@ const MobileDashboard = () => {
       {/* Header Section - NOT Fixed */}
       <div
         style={{
-          backgroundColor: "#f6a96b",
-          padding: "20px",
-          borderBottomLeftRadius: "40px",
-          borderBottomRightRadius: "40px",
+          backgroundColor: "#FFC904",
+          height: "60px",
+          padding: "0px",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          width: "94%",
-          maxWidth: "500px",
+          justifyContent: "space-between",
+          width: "100%",
           marginTop: "0px", // Ensure it's not fixed and flows naturally
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", flexDirection: "column" }}>
-          {/* Profile Picture */}
-          <div
-            style={{
-              width: "70px",
-              height: "70px",
-              borderRadius: "50%",
-              border: "4px solid #fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#fff",
-              marginBottom: "10px",
-            }}
-          >
-            <FaUserCircle size={50} color="#333" />
-          </div>
-          <h2 style={{ fontSize: "18px", marginTop: "-2px", fontWeight: "bold", color: "#333" }}>{userName}</h2>
-        </div>
+
+        {/* Team Logo (Left) */}
+        <img 
+          src="/images/team-logo.png" 
+          alt="Team Logo" 
+          style={{
+            width: "60px",  // Adjusted size for better visibility
+            height: "auto",
+            paddingLeft: "10px",
+            borderRadius: "5px",
+          }} 
+        />
+
       </div>
 
       {/* Push content down to avoid overlap */}
       <div style={{ marginTop: "20px", padding: "0px 25px", width: "100%", maxWidth: "500px" }}>
         {/* My Courses Section */}
-        <h3 style={{ marginTop: "20px", color: "#333", fontSize: "22px", padding: "0 20px", fontWeight: "bold" }}>
-          My Courses
+        <h3 style={{ marginTop: "20px", color: "#333", fontSize: "25px", padding: "0 20px", fontWeight: "bold" }}>
+          Courses
         </h3>
         <div style={{ marginTop: "10px" }}>
           {apiError ? (
@@ -137,17 +165,18 @@ const MobileDashboard = () => {
                     display: "flex",
                     alignItems: "center",
                     backgroundColor: "#fff",
+                    border: '2px solid #E0E0E0',
                     padding: "20px",
-                    width: "85%", /* Ensure it's not too wide */
-                    maxWidth: "350px", /* Prevents stretching on wider screens */
+                    width: "85%", 
+                    maxWidth: "350px", 
                     borderRadius: "20px",
                     marginBottom: "12px",
                     boxShadow: "0px 3px 7px rgba(0,0,0,0.1)",
                     fontSize: "16px",
                     fontWeight: "bold",
-                    justifyContent: "center", /* Centers content inside */
-                    marginLeft: "auto", /* Centers the box */
-                    marginRight: "auto", /* Centers the box */
+                    justifyContent: "center", 
+                    marginLeft: "auto", 
+                    marginRight: "auto", 
                   }}
                 >
                   <div
@@ -170,7 +199,7 @@ const MobileDashboard = () => {
         </div>
 
         {/* Attendance Grades Section */}
-        <h3 style={{ marginTop: "20px", color: "#333", fontSize: "22px", padding: "0 20px", fontWeight: "bold" }}>
+        <h3 style={{ marginTop: "40px", color: "#333", fontSize: "25px", padding: "0 20px", fontWeight: "bold" }}>
           Attendance Grades
         </h3>
         <div
@@ -198,6 +227,7 @@ const MobileDashboard = () => {
                     backgroundColor: backgroundColor, // Assign the alternating color
                     padding: "20px",
                     borderRadius: "25px",
+                    border: '2px solid #E0E0E0',
                     color: "#fff",
                     textAlign: "center",
                     boxShadow: "0px 3px 7px rgba(0,0,0,0.1)",
@@ -224,7 +254,7 @@ const MobileDashboard = () => {
                   >
                     <span style={{ fontWeight: "bold", color: "#333" }}>{course.percentage}%</span>
                   </div>
-                  <p style={{ fontSize: "14px", fontWeight: "bold", marginTop: "5px" }}>{course.name}</p>
+                  <p style={{ fontSize: "14px", fontWeight: "bold", marginTop: "15px" }}>{course.name}</p>
                 </div>
               );
             })

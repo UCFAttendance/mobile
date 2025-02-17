@@ -1,107 +1,213 @@
-import React, { useEffect, useRef, useState } from 'react';
-import QrScanner from 'qr-scanner';
-import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from "react";
+import QrScanner from "qr-scanner";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 const ScanQR = () => {
-  const videoRef = useRef(null); 
-  const qrScannerRef = useRef(null); 
-  const [cameraError, setCameraError] = useState(null); 
-  const isProcessingRef = useRef(false); 
+  const videoRef = useRef(null);
+  const qrScannerRef = useRef(null);
+  const canvasRef = useRef(null); // For capturing images
+  const isProcessingRef = useRef(false);
+  const lastErrorTimeRef = useRef(0);
   const navigate = useNavigate();
 
-  const validateToken = async (token) => {
+  const [cameraError, setCameraError] = useState(null);
+  const [hasSuccessMessageShown, setHasSuccessMessageShown] = useState(false);
+  const [faceRecognitionEnabled, setFaceRecognitionEnabled] = useState(false);
+  const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
+  const [showCaptureButton, setShowCaptureButton] = useState(false);
+
+  // Function to validate QR Token with API
+  const validateQRToken = async (qrToken) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
-        method: 'POST',
+      let accessToken = localStorage.getItem("accessToken");
+
+      console.log("Sending QR Token to API:", qrToken);
+
+      let response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token: qrToken }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        return data; // Return the back-end response
-      } else {
-        throw new Error('Invalid QR code.');
+      if (response.status === 401) {
+        console.warn("Access token expired. Attempting to refresh...");
+
+        // Attempt to refresh the access token
+        accessToken = await refreshAccessToken();
+
+        // Retry the request with the new token
+        response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ token: qrToken }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to submit attendance after refreshing token.");
+        }
       }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API Error Response:", errorText);
+        throw new Error(`Invalid request: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("Attendance API Response:", data);
+
+
+      if (data.session_id.face_recognition_enabled) {
+        setFaceRecognitionEnabled(true);
+        setFaceImageUploadUrl(data.face_image_upload_url);
+        setShowCaptureButton(true);
+      }
+
+      return data;
     } catch (error) {
-      console.error('Error validating the token:', error);
+      console.error("Error validating QR code:", error);
       throw error;
     }
   };
 
-  const handleScan = async (result) => {
-    if (!result || isProcessingRef.current) return; 
-    isProcessingRef.current = true; 
+  // Function to refresh access token
+  const refreshAccessToken = async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) {
+      throw new Error("No refresh token available.");
+    }
 
-    console.log('Scanned QR Code:', result);
+    console.log("Refreshing Access Token...");
+  
+    const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to refresh token.");
+    }
+
+    const data = await response.json();
+    localStorage.setItem("accessToken", data.access);
+    return data.access;
+  };
+
+  // Function to handle QR scan result
+  const handleScan = async (result) => {
+    if (!result || isProcessingRef.current) return;
+    isProcessingRef.current = true;
+
+    console.log("Scanned QR Code:", result);
 
     try {
-      const response = await validateToken(result);
+      const response = await validateQRToken(result);
 
-      if (response?.status === 'success') {
-        toast.success('Attendance marked successfully!');
-        navigate('/dashboard');
+      if (response?.status === "success") {
+        if (!hasSuccessMessageShown) {
+          toast.success("Attendance marked successfully!");
+          setHasSuccessMessageShown(true);
+        }
+
+        if (!response.session_id.face_recognition_enabled) {
+          navigate("/dashboard");
+        }
       } else {
-        toast.error('Invalid QR code. Please scan a valid code.');
+        throw new Error("Invalid QR code. Please scan a valid code.");
       }
     } catch (error) {
-      toast.error('Invalid QR code. Please scan a valid code.');
+      const now = Date.now();
+      if (now - lastErrorTimeRef.current > 5000) {
+        toast.error(error.message || "Invalid QR code. Please try again.");
+        lastErrorTimeRef.current = now;
+      }
     } finally {
       setTimeout(() => {
-        isProcessingRef.current = false; 
-      }, 5000); 
+        isProcessingRef.current = false;
+      }, 5000);
     }
+  };
+
+  // Function to capture image and send to API
+  const captureImage = async () => {
+    if (!videoRef.current || !canvasRef.current || !faceImageUploadUrl) return;
+
+    const canvas = canvasRef.current;
+    const context = canvas.getContext("2d");
+    context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+    // Convert canvas image to blob
+    canvas.toBlob(async (blob) => {
+      const formData = new FormData();
+      formData.append("file", blob);
+
+      try {
+        const response = await fetch(faceImageUploadUrl, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) throw new Error("Failed to upload face image.");
+        
+        toast.success("Face verification submitted!");
+        navigate("/dashboard");
+
+      } catch (error) {
+        console.error("Error uploading face image:", error);
+        toast.error("Face image upload failed. Try again.");
+      }
+    }, "image/jpeg");
   };
 
   useEffect(() => {
     const startCamera = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-        });
+        const constraints = {
+          video: {
+            facingMode: faceRecognitionEnabled
+              ? { ideal: "user" } // Selfie mode for face recognition
+              : { ideal: "environment" }, // Default for non-face-recognition
+          },
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         if (videoRef.current) {
           if (videoRef.current.srcObject) {
-            const tracks = videoRef.current.srcObject.getTracks();
-            tracks.forEach((track) => track.stop());
+            videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
           }
 
           videoRef.current.srcObject = stream;
 
-          videoRef.current.addEventListener('loadeddata', () => {
-            videoRef.current
-              .play()
-              .catch((err) => console.error('Error starting video playback:', err));
+          videoRef.current.addEventListener("loadeddata", () => {
+            if (videoRef.current.paused) {
+              videoRef.current.play().catch((err) => console.error("Error starting video playback:", err));
+            }
           });
 
           qrScannerRef.current = new QrScanner(
             videoRef.current,
-            (result) => {
-              if (result) {
-                handleScan(result.data || result);
-              }
-            },
+            (result) => handleScan(result.data || result),
             {
               highlightScanRegion: true,
               highlightCodeOutline: true,
+              willReadFrequently: true,
             }
           );
 
           qrScannerRef.current.start();
         }
       } catch (error) {
-        console.error('Error accessing the camera:', error);
-        if (error.name === 'NotAllowedError') {
-          setCameraError('Camera access denied. Please allow access to use this feature.');
-        } else if (error.name === 'NotFoundError') {
-          setCameraError('No camera found on this device.');
-        } else {
-          setCameraError('Unable to access the camera. Please check your device settings.');
-        }
+        console.error("Error accessing the camera:", error);
+        setCameraError("Unable to access the camera. Check your device settings.");
       }
     };
 
@@ -113,60 +219,31 @@ const ScanQR = () => {
         qrScannerRef.current.destroy();
       }
       if (videoRef.current?.srcObject) {
-        const tracks = videoRef.current.srcObject.getTracks();
-        tracks.forEach((track) => track.stop());
+        videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
         videoRef.current.srcObject = null;
       }
     };
-  }, []);
+  }, [faceRecognitionEnabled]);
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Scan QR Code</h2>
-      <div style={styles.videoContainer}>
-        {cameraError ? (
-          <p style={styles.errorText}>{cameraError}</p>
-        ) : (
-          <video ref={videoRef} style={styles.video} playsInline />
-        )}
+    <div style={{ textAlign: "center", padding: "20px" }}>
+      <h2>Scan QR Code</h2>
+      <div>
+        {cameraError ? <p style={{ color: "red" }}>{cameraError}</p> : <video ref={videoRef} style={{ transform: "scaleX(-1)", width: "80%" }} playsInline />}
       </div>
+      <canvas ref={canvasRef} style={{ display: "none" }} width="640" height="480"></canvas>
+      {showCaptureButton && (
+        <button onClick={captureImage} style={{ marginTop: "10px", padding: "10px 20px", fontSize: "16px" }}>
+          Capture Face Image
+        </button>
+      )}
     </div>
   );
 };
 
-const styles = {
-  container: {
-    textAlign: 'center',
-    padding: '20px',
-  },
-  heading: {
-    fontSize: '24px',
-    marginBottom: '20px',
-  },
-  videoContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: '20px',
-    maxWidth: '100%',
-    overflow: 'hidden', 
-    border: 'none', 
-  },
-  video: {
-    width: 'clamp(300px, 80%, 800px)', 
-    height: 'auto', 
-    aspectRatio: '16 / 9', 
-    display: 'block', 
-    margin: '0',
-    border: 'none', 
-  },
-  errorText: {
-    color: 'red',
-    fontSize: '18px',
-  },
-};
-
 export default ScanQR;
+
+
 
 
 
