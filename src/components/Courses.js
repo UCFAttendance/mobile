@@ -117,7 +117,7 @@ useEffect(() => {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2 style={{ marginBottom: "20px" }}>Courses</h2>
+      <h2 class="text-2xl font-bold leading-4 text-gray-900 sm:text-3xl sm:tracking-tight">Courses</h2>
 
       {loading ? (
         <p>Loading courses...</p>
