@@ -6,16 +6,12 @@ import { useNavigate } from "react-router-dom";
 const ScanQR = () => {
   const videoRef = useRef(null);
   const qrScannerRef = useRef(null);
-  const canvasRef = useRef(null); // For capturing images
   const isProcessingRef = useRef(false);
   const lastErrorTimeRef = useRef(0);
   const navigate = useNavigate();
-
+  
   const [cameraError, setCameraError] = useState(null);
   const [hasSuccessMessageShown, setHasSuccessMessageShown] = useState(false);
-  const [faceRecognitionEnabled, setFaceRecognitionEnabled] = useState(false);
-  const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
-  const [showCaptureButton, setShowCaptureButton] = useState(false);
 
   // Function to validate QR Token with API
   const validateQRToken = async (qrToken) => {
@@ -30,7 +26,7 @@ const ScanQR = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ token: qrToken }),
+        body: JSON.stringify({ token: qrToken }), // ✅ Matching API format
       });
 
       if (response.status === 401) {
@@ -62,14 +58,6 @@ const ScanQR = () => {
 
       const data = await response.json();
       console.log("Attendance API Response:", data);
-
-
-      if (data.session_id.face_recognition_enabled) {
-        setFaceRecognitionEnabled(true);
-        setFaceImageUploadUrl(data.face_image_upload_url);
-        setShowCaptureButton(true);
-      }
-
       return data;
     } catch (error) {
       console.error("Error validating QR code:", error);
@@ -116,10 +104,7 @@ const ScanQR = () => {
           toast.success("Attendance marked successfully!");
           setHasSuccessMessageShown(true);
         }
-
-        if (!response.session_id.face_recognition_enabled) {
-          navigate("/dashboard");
-        }
+        navigate("/dashboard");
       } else {
         throw new Error("Invalid QR code. Please scan a valid code.");
       }
@@ -136,49 +121,12 @@ const ScanQR = () => {
     }
   };
 
-  // Function to capture image and send to API
-  const captureImage = async () => {
-    if (!videoRef.current || !canvasRef.current || !faceImageUploadUrl) return;
-
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-    context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-
-    // Convert canvas image to blob
-    canvas.toBlob(async (blob) => {
-      const formData = new FormData();
-      formData.append("file", blob);
-
-      try {
-        const response = await fetch(faceImageUploadUrl, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) throw new Error("Failed to upload face image.");
-        
-        toast.success("Face verification submitted!");
-        navigate("/dashboard");
-
-      } catch (error) {
-        console.error("Error uploading face image:", error);
-        toast.error("Face image upload failed. Try again.");
-      }
-    }, "image/jpeg");
-  };
-
   useEffect(() => {
     const startCamera = async () => {
       try {
-        const constraints = {
-          video: {
-            facingMode: faceRecognitionEnabled
-              ? { ideal: "user" } // Selfie mode for face recognition
-              : { ideal: "environment" }, // Default for non-face-recognition
-          },
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+        });
 
         if (videoRef.current) {
           if (videoRef.current.srcObject) {
@@ -187,9 +135,9 @@ const ScanQR = () => {
 
           videoRef.current.srcObject = stream;
 
-          videoRef.current.addEventListener("loadeddata", () => {
+          videoRef.current.addEventListener('loadeddata', () => {
             if (videoRef.current.paused) {
-              videoRef.current.play().catch((err) => console.error("Error starting video playback:", err));
+              videoRef.current.play().catch((err) => console.error('Error starting video playback:', err));
             }
           });
 
@@ -199,7 +147,7 @@ const ScanQR = () => {
             {
               highlightScanRegion: true,
               highlightCodeOutline: true,
-              willReadFrequently: true,
+              willReadFrequently: true // Enable this for better performance
             }
           );
 
@@ -207,7 +155,13 @@ const ScanQR = () => {
         }
       } catch (error) {
         console.error("Error accessing the camera:", error);
-        setCameraError("Unable to access the camera. Check your device settings.");
+        setCameraError(
+          error.name === "NotAllowedError"
+            ? "Camera access denied. Please allow access."
+            : error.name === "NotFoundError"
+            ? "No camera found on this device."
+            : "Unable to access the camera. Check your device settings."
+        );
       }
     };
 
@@ -223,26 +177,52 @@ const ScanQR = () => {
         videoRef.current.srcObject = null;
       }
     };
-  }, [faceRecognitionEnabled]);
+  }, []);
 
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
-      <h2>Scan QR Code</h2>
-      <div>
-        {cameraError ? <p style={{ color: "red" }}>{cameraError}</p> : <video ref={videoRef} style={{ transform: "scaleX(-1)", width: "80%" }} playsInline />}
+    <div style={styles.container}>
+      <h2 style={styles.heading}>Scan QR Code</h2>
+      <div style={styles.videoContainer}>
+        {cameraError ? <p style={styles.errorText}>{cameraError}</p> : <video ref={videoRef} style={styles.video} playsInline />}
       </div>
-      <canvas ref={canvasRef} style={{ display: "none" }} width="640" height="480"></canvas>
-      {showCaptureButton && (
-        <button onClick={captureImage} style={{ marginTop: "10px", padding: "10px 20px", fontSize: "16px" }}>
-          Capture Face Image
-        </button>
-      )}
     </div>
   );
 };
 
-export default ScanQR;
+const styles = {
+  container: {
+    textAlign: "center",
+    padding: "20px",
+  },
+  heading: {
+    fontSize: "24px",
+    marginBottom: "20px",
+  },
+  videoContainer: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: "20px",
+    maxWidth: "100%",
+    overflow: "hidden",
+    border: "none",
+  },
+  video: {
+    width: "clamp(300px, 80%, 800px)",
+    height: "auto",
+    aspectRatio: "16 / 9",
+    display: "block",
+    margin: "0",
+    border: "none",
+    transform: "scaleX(-1)",
+  },
+  errorText: {
+    color: "red",
+    fontSize: "18px",
+  },
+};
 
+export default ScanQR;
 
 
 

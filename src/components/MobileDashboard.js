@@ -4,12 +4,12 @@ import { FaUserCircle } from "react-icons/fa";
 const MobileDashboard = () => {
   const [userName, setUserName] = useState("Student");
   const [courses, setCourses] = useState([]);
-  const [attendanceGrades, setAttendanceGrades] = useState([]);
+  const [attendanceAverages, setAttendanceAverages] = useState([]);
   const [apiError, setApiError] = useState(false);
   const [shouldScroll, setShouldScroll] = useState(true);
 
   useEffect(() => {
-    // Retrieve user's name from localStorage
+    // Retrieve user's name from LocalStorage
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
@@ -61,42 +61,43 @@ const MobileDashboard = () => {
           if (!response.ok) throw new Error("Failed to fetch attendance data after token refresh.");
         }
 
-
-
-
-
-
-
-
-        // if (!response.ok) {
-        //   setShouldScroll(false);
-        //   throw new Error("Failed to fetch attendance data.");
-        // }
-
         const attendanceData = await response.json();
 
         // Extract unique courses
         const uniqueCourses = {};
-        const grades = [];
+        const courseAttendance = {}; // Object to store summed attendance
 
         attendanceData.forEach((entry) => {
           const courseId = entry.session_id.course_id.id;
           const courseName = entry.session_id.course_id.name;
-
+          
+          // Store unique course names
           if (!uniqueCourses[courseId]) {
             uniqueCourses[courseId] = courseName;
           }
 
-          // Assuming attendance percentage can be calculated from attendance records
-          const attendancePercentage = entry.is_present ? 100 : 0;
-          grades.push({ name: courseName, percentage: attendancePercentage });
+          // Initialize course entry in courseAttendance
+          if (!courseAttendance[courseId]) {
+            courseAttendance[courseId] = { total: 0, count: 0 };
+          }
+
+          // Add attendance data
+          courseAttendance[courseId].total += entry.is_present ? 100 : 0;
+          courseAttendance[courseId].count += 1;
         });
 
-        setCourses(Object.values(uniqueCourses)); // Convert object to array
-        setAttendanceGrades(grades);
+        // Convert attendance records to averages
+        const attendanceAverages = Object.keys(courseAttendance).map((courseId, index) => ({
+          id: courseId,
+          name: uniqueCourses[courseId],
+          percentage: Math.round(courseAttendance[courseId].total / courseAttendance[courseId].count), // Calculate average
+        }));
+
+        setCourses(Object.values(uniqueCourses)); // Convert object back to array
+        setAttendanceAverages(attendanceAverages);
 
         // Disable scrolling if there are fewer than 3 attendance grades, no courses, or API error
-        setShouldScroll(!(grades.length < 3 && Object.values(uniqueCourses).length === 0));
+        setShouldScroll(!(attendanceAverages.length < 3 && Object.values(uniqueCourses).length === 0));
       } catch (error) {
         console.error("Error fetching attendance data:", error);
         setApiError(true);
@@ -130,22 +131,20 @@ const MobileDashboard = () => {
           alignItems: "center",
           justifyContent: "space-between",
           width: "100%",
-          marginTop: "0px", // Ensure it's not fixed and flows naturally
+          marginTop: "0px",
         }}
       >
-
         {/* Team Logo (Left) */}
         <img 
           src="/images/team-logo.png" 
           alt="Team Logo" 
           style={{
-            width: "60px",  // Adjusted size for better visibility
+            width: "60px",
             height: "auto",
             paddingLeft: "10px",
             borderRadius: "5px",
           }} 
         />
-
       </div>
 
       {/* Push content down to avoid overlap */}
@@ -184,7 +183,7 @@ const MobileDashboard = () => {
                       width: "14px",
                       height: "14px",
                       borderRadius: "50%",
-                      backgroundColor: index % 2 === 0 ? "#ff6b6b" : "#fbc531",
+                      backgroundColor: index % 2 === 0 ? "#3dc1d3" : "#ff6b6b",
                       marginRight: "12px",
                     }}
                   ></div>
@@ -202,65 +201,20 @@ const MobileDashboard = () => {
         <h3 style={{ marginTop: "40px", color: "#333", fontSize: "25px", padding: "0 20px", fontWeight: "bold" }}>
           Attendance Grades
         </h3>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "15px", // Increased spacing between widgets
-            marginTop: "10px",
-            padding: "0 20px",
-            gridAutoRows: "minmax(120px, auto)", // Ensures proper spacing and prevents overlap
-          }}
-        >
-          {apiError ? (
-            <p style={{ fontSize: "16px", color: "#888" }}>Failed to load attendance data.</p>
-          ) : attendanceGrades.length > 0 ? (
-            attendanceGrades.map((course, index) => {
-              // Array of three alternating colors
-              const colors = ["#3dc1d3", "#ff6b6b", "#fbc531"];
-              const backgroundColor = colors[index % 3]; // Cycle through colors
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginTop: "10px", padding: "0 20px" }}>
+          {attendanceAverages.map((course, index) => {
+            const colors = ["#3dc1d3", "#ff6b6b", "#fbc531"];
+            const backgroundColor = colors[index % 3]; // Cycle through colors
 
-              return (
-                <div
-                  key={index}
-                  style={{
-                    backgroundColor: backgroundColor, // Assign the alternating color
-                    padding: "20px",
-                    borderRadius: "25px",
-                    border: '2px solid #E0E0E0',
-                    color: "#fff",
-                    textAlign: "center",
-                    boxShadow: "0px 3px 7px rgba(0,0,0,0.1)",
-                    height: "auto", // Ensures dynamic height instead of fixed
-                    minHeight: "120px", // Prevents overlap
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {/* Circular Progress Indicator */}
-                  <div
-                    style={{
-                      width: "60px",
-                      height: "60px",
-                      borderRadius: "50%",
-                      backgroundColor: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      position: "relative",
-                    }}
-                  >
-                    <span style={{ fontWeight: "bold", color: "#333" }}>{course.percentage}%</span>
-                  </div>
-                  <p style={{ fontSize: "14px", fontWeight: "bold", marginTop: "15px" }}>{course.name}</p>
+            return (
+              <div key={course.id} style={{ backgroundColor, padding: "20px", borderRadius: "25px", textAlign: "center", boxShadow: "0px 3px 7px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: "60px", height: "60px", borderRadius: "50%", backgroundColor: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontWeight: "bold", color: "#333" }}>{course.percentage}%</span>
                 </div>
-              );
-            })
-          ) : (
-            <p style={{ fontSize: "16px", color: "#888" }}>No attendance data available</p>
-          )}
+                <p style={{ fontSize: "14px", fontWeight: "bold", marginTop: "10px", color: "#FFFFFF" }}>{course.name}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
