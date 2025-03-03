@@ -1,38 +1,202 @@
-.App {
-  text-align: center;
+/* Apply dark mode to the entire app */
+.app-container {
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* Light Theme */
+.light-theme {
+  background-color: #f5f5f5;
+  color: #000;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* Dark Theme */
+.dark-theme {
+  background-color: #121212;
+  color: #fff;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+/* Ensure all text adapts in dark mode */
+.dark-theme h2, 
+.dark-theme p, 
+.dark-theme span, 
+.dark-theme label, 
+.dark-theme a, 
+.dark-theme .settings-button {
+  color: #fff !important;
+}
+
+/* Ensure Bottom Navigation Active Text is Blue in Dark Mode */
+.dark-theme nav a.active p,
+.dark-theme nav a.active span {
+  color: #007bff !important; /* Make text blue when active */
+}
+
+
+.forgot-password {
+  color: #007bff !important; /* Force the correct blue */
+  text-decoration: none;
+}
+
+.dark-theme a.forgot-password {
+  color: #007bff !important; /* Ensure it stays blue */
+}
+
+/* Bottom Navigation Dark Mode */
+.dark-theme nav {
+  background-color: #222 !important;
+  border-top: 2px solid #333;
+}
+
+/* Theme Box */
+.theme-box {
+  background-color: #333;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.theme-box h4 {
+  font-size: 14px;
+  color: #bbb;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #555;
+}
+
+.theme-option {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+  padding: 15px 0;
+}
+
+/* Ensure buttons adapt */
+.settings-button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: none;
+  background: #ddd;
+  transition: background 0.3s ease;
+}
+
+.dark-theme .settings-button {
+  background: #444;
+  color: #fff;
+}
+
+/* Toggle Switch for Dark Mode */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:checked + .slider:before {
+  transform: translateX(18px);
+}
+
+/* Apply dark mode to other elements */
+.dark-theme .App-header {
+  background-color: #1e1e1e;
+}
+
+.dark-theme .App {
   color: white;
 }
 
-.App-link {
-  color: #61dafb;
+.dark-theme .theme-box {
+  background-color: #222;
+  color: white;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+
+/* Apply dark theme to all main pages */
+html.dark-theme, body.dark-theme {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+}
+
+/* Ensure every section of every page respects dark mode */
+html.dark-theme .app-root,
+html.dark-theme .page-container,
+html.dark-theme .dashboard-container,
+html.dark-theme .history-container,
+html.dark-theme .settings-container {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+}
+
+/* Force dark mode for all sections and containers */
+html.dark-theme .content-section,
+html.dark-theme .box,
+html.dark-theme .profile-container,
+html.dark-theme .settings-box {
+  background-color: #222 !important;
+  color: #ffffff !important;
+}
+
+/* Ensure buttons also adapt */
+html.dark-theme .button,
+html.dark-theme .settings-button {
+  background-color: #444 !important;
+  color: #ffffff !important;
+}
+
+/* Ensure all input fields respect dark mode */
+html.dark-theme input,
+html.dark-theme textarea,
+html.dark-theme select {
+  background-color: #222 !important;
+  color: #ffffff !important;
+  border: 1px solid #444 !important;
+}
+
+/* Fix table and list colors */
+html.dark-theme table,
+html.dark-theme th,
+html.dark-theme td {
+  background-color: #222 !important;
+  color: #ffffff !important;
+}
+
+/* Navigation bar dark mode */
+html.dark-theme nav {
+  background-color: #222 !important;
+  border-top: 2px solid #333 !important;
 }
