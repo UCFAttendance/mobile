@@ -17,11 +17,27 @@ const Scan = () => {
   const BASE_URL = process.env.REACT_APP_BASE_URL;
 
   useEffect(() => {
-    // Start in QR mode
+    // Ask for location permission at startup
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log('Location permission granted:', position.coords);
+        },
+        (error) => {
+          console.warn('Location permission denied:', error);
+          toast.error('Location services are disabled. Enable GPS for attendance.');
+        }
+      );
+    } else {
+      toast.error('Geolocation is not supported in this browser.');
+    }
+  
+    // Start the camera in QR mode
     startCamera('qr');
     return () => stopCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
 
   /**
    * Attempt to start the camera in either 'qr' or 'face' mode.
@@ -94,42 +110,70 @@ const Scan = () => {
   };
 
   const handleQrScan = async (result) => {
-    if (loading) return;
+    if (loading) return; // Prevent duplicate scans while processing
     setLoading(true);
     stopCamera(); // Turn off the current camera stream
-
+  
     try {
       const accessToken = localStorage.getItem('accessToken');
       if (!accessToken) throw new Error('Authentication error. Please log in.');
-
-      const response = await axios.post(
-        `${BASE_URL}/api/v1/attendance/`,
-        { token: result.data || result },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
+  
+      /**
+       * Attempt to get the user's location.
+       * If permission is granted, extract latitude & longitude.
+       * If denied, notify the user to enable location.
+       */
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords; // Extract GPS coordinates
+  
+          console.log('User Location:', latitude, longitude);
+  
+          // Send QR token + GPS location to API
+          const response = await axios.post(
+            `${BASE_URL}/api/v1/attendance/`,
+            {
+              token: result.data || result, // QR Code token
+              latitude,  // Send user's latitude
+              longitude, // Send user's longitude
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+  
+          console.log('Attendance API Response:', response.data);
+          toast.success('Attendance recorded successfully!');
+  
+          // Check if face recognition is required.
+          const faceRecognitionEnabled = response.data?.session_id?.face_recognition_enabled;
+          console.log('Face recognition enabled:', faceRecognitionEnabled);
+  
+          // If face recognition is required, switch to selfie mode
+          if (!faceRecognitionEnabled) {
+            setScannedData(response.data);
+            setDoneQr(true);
+            setTimeout(() => {
+              startCamera('face'); // Switch camera to user-facing
+            }, 300);
+          }
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+  
+          // If location permission is denied or unavailable, notify the user
+          if (!messageDisplayed) {
+            toast.error('Location access denied. Enable GPS to proceed.');
+            setMessageDisplayed(true);
+            resetMessageFlag(); // Reset message flag after delay
+          }
+  
+          setLoading(false);
         }
       );
-
-      console.log('Attendance API Response:', response.data);
-      toast.success('Attendance recorded successfully!');
-
-      // Check if face recognition is required.
-      // In your logic, if face_recognition_enabled is false, you do face capture.
-      // Adjust if your API does the opposite.
-      const faceRecognitionEnabled = response.data?.session_id?.face_recognition_enabled;
-      console.log('Face recognition enabled:', faceRecognitionEnabled);
-
-      if (!faceRecognitionEnabled) {
-        setScannedData(response.data);
-        setDoneQr(true);
-        // Slight delay to let the camera release fully before flipping
-        setTimeout(() => {
-          startCamera('face');
-        }, 300);
-      }
     } catch (error) {
       setTimeout(() => {
         if (!messageDisplayed) {
@@ -137,13 +181,14 @@ const Scan = () => {
             error.response?.data?.message || 'Invalid QR Code. Please try again.'
           );
           setMessageDisplayed(true);
-          resetMessageFlag();
+          resetMessageFlag(); // Prevent repeated error messages
         }
       }, 5000);
     } finally {
       setLoading(false);
     }
   };
+  
 
   const handlePhotoCapture = async () => {
     try {
