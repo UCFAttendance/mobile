@@ -113,6 +113,12 @@ const Settings = () => {
             darkMode={darkMode}
             onClick={() => navigate("/account-settings")}
           />
+          <Option
+            icon={<FaLock />}
+            label="Change Password"
+            darkMode={darkMode}
+            onClick={() => navigate("/change-password")}
+          />
         </div>
       </div>
 

@@ -20,6 +20,7 @@ import History from "./components/History";
 import { useNavigate } from "react-router-dom";
 import ForgotPassword from "./components/ForgotPassword";
 import AccountSettings from "./components/AccountSettings";
+import ChangePassword from "./components/ChangePassword";
 
 const App = () => {
   // Load dark mode preference from localStorage
@@ -129,6 +130,7 @@ const AppContent = ({ darkMode, setDarkMode }) => {
           />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/account-settings" element={<AccountSettings />} />
+          <Route path="/change-password" element={<ChangePassword />} />
         </Routes>
       </div>
 
