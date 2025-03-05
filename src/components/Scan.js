@@ -118,62 +118,68 @@ const Scan = () => {
       const accessToken = localStorage.getItem('accessToken');
       if (!accessToken) throw new Error('Authentication error. Please log in.');
   
-      /**
-       * Attempt to get the user's location.
-       * If permission is granted, extract latitude & longitude.
-       * If denied, notify the user to enable location.
-       */
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords; // Extract GPS coordinates
+      // Parse the scanned QR code data
+      let scannedData;
+      try {
+        scannedData = JSON.parse(result.data || result); 
+      } catch (parseError) {
+        console.error('Error parsing QR data:', parseError);
+        toast.error('Invalid QR Code format.');
+        setLoading(false);
+        return;
+      }
   
-          console.log('User Location:', latitude, longitude);
+      const { token, locationEnabled } = scannedData;
   
-          // Send QR token + GPS location to API
-          const response = await axios.post(
-            `${BASE_URL}/api/v1/attendance/`,
-            {
-              token: result.data || result, // QR Code token
-              latitude,  // Send user's latitude
-              longitude, // Send user's longitude
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-  
-          console.log('Attendance API Response:', response.data);
-          toast.success('Attendance recorded successfully!');
-  
-          // Check if face recognition is required.
-          const faceRecognitionEnabled = response.data?.session_id?.face_recognition_enabled;
-          console.log('Face recognition enabled:', faceRecognitionEnabled);
-  
-          // If face recognition is required, switch to selfie mode
-          if (!faceRecognitionEnabled) {
-            setScannedData(response.data);
-            setDoneQr(true);
-            setTimeout(() => {
-              startCamera('face'); // Switch camera to user-facing
-            }, 300);
-          }
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-  
-          // If location permission is denied or unavailable, notify the user
-          if (!messageDisplayed) {
-            toast.error('Location access denied. Enable GPS to proceed.');
-            setMessageDisplayed(true);
-            resetMessageFlag(); // Reset message flag after delay
-          }
-  
-          setLoading(false);
+      // API Request Function
+      const sendAttendanceRequest = async (latitude = null, longitude = null) => {
+        const payload = { token };
+        if (locationEnabled) {
+          payload.latitude = latitude;
+          payload.longitude = longitude;
         }
-      );
+  
+        const response = await axios.post(
+          `${BASE_URL}/api/v1/attendance/`,
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+  
+        console.log('Attendance API Response:', response.data);
+        toast.success('Attendance recorded successfully!');
+  
+        // Check if face recognition is required
+        const faceRecognitionEnabled = response.data?.session_id?.face_recognition_enabled;
+        if (!faceRecognitionEnabled) {
+          setScannedData(response.data);
+          setDoneQr(true);
+          setTimeout(() => startCamera('face'), 300);
+        }
+      };
+  
+      // Handle location requirement
+      if (locationEnabled) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log('User Location:', latitude, longitude);
+            await sendAttendanceRequest(latitude, longitude);
+          },
+          (error) => {
+            console.error('Geolocation error:', error);
+            toast.error('Location access denied. Enable GPS to proceed.');
+            setLoading(false);
+          }
+        );
+      } else {
+        // If location is NOT required, send attendance request without GPS
+        await sendAttendanceRequest();
+      }
     } catch (error) {
       setTimeout(() => {
         if (!messageDisplayed) {
@@ -181,13 +187,14 @@ const Scan = () => {
             error.response?.data?.message || 'Invalid QR Code. Please try again.'
           );
           setMessageDisplayed(true);
-          resetMessageFlag(); // Prevent repeated error messages
+          resetMessageFlag();
         }
       }, 5000);
     } finally {
       setLoading(false);
     }
   };
+  
   
 
   const handlePhotoCapture = async () => {
