@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-
+import axios from "axios";
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -42,7 +42,7 @@ const ForgotPassword = () => {
 
       if (response.ok) {
         setMessage("Password reset instructions have been sent to your email.");
-        setTimeout(() => navigate("/login"), 3000);
+        setTimeout(() => navigate("/#"), 3000);
       } else {
         const data = await response.json();
         setMessage(data.detail || "An error occurred. Please try again.");
