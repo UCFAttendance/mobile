@@ -45,7 +45,7 @@ const Settings = () => {
       {/* Header Section */}
       <div
         style={{
-          backgroundColor: "#FFD700", // Yellow header
+          backgroundColor: "#FFC904", // Yellow header
           padding: "85px 20px",
           textAlign: "center",
           color: "#fff",
