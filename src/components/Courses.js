@@ -11,7 +11,7 @@ const Courses = () => {
 useEffect(() => {
   const fetchAttendanceData = async () => {
     try {
-      let token = localStorage.getItem("accessToken"); // Get the stored auth token
+      let token = localStorage.getItem("accessToken"); 
       let response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
         method: "GET",
         headers: {
@@ -21,7 +21,7 @@ useEffect(() => {
       });
 
       if (response.status === 401) {
-        // Token expired, attempt to refresh
+        
         const refreshToken = localStorage.getItem("refreshToken");
         if (!refreshToken) throw new Error("No refresh token available.");
 
@@ -34,10 +34,10 @@ useEffect(() => {
         if (!refreshResponse.ok) throw new Error("Failed to refresh token.");
 
         const refreshData = await refreshResponse.json();
-        token = refreshData.access; // New access token
-        localStorage.setItem("accessToken", token); // Store new token
+        token = refreshData.access; 
+        localStorage.setItem("accessToken", token); 
 
-        // Retry fetching attendance data with the new token
+        
         response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
           method: "GET",
           headers: {
@@ -51,7 +51,7 @@ useEffect(() => {
 
       const attendanceData = await response.json();
 
-      // Extract unique course names from attendance data
+      
       const uniqueCourses = {};
       attendanceData.forEach((entry) => {
         const courseId = entry.session_id.course_id.id;
@@ -61,7 +61,7 @@ useEffect(() => {
         }
       });
 
-      setCourses(Object.values(uniqueCourses)); // Convert object back to array
+      setCourses(Object.values(uniqueCourses)); 
       setLoading(false);
     } catch (err) {
       console.error("Error fetching attendance data:", err);
@@ -73,7 +73,7 @@ useEffect(() => {
   fetchAttendanceData();
 }, []);
 
-  // Fetch attendance records when expanding a course
+ 
   const handleToggleExpand = async (courseId) => {
     if (expandedCourseId === courseId) {
       setExpandedCourseId(null);
@@ -95,11 +95,11 @@ useEffect(() => {
 
           const attendanceData = await response.json();
 
-          // Filter attendance records for the selected course
+          
           const filteredAttendance = attendanceData
             .filter(entry => entry.session_id.course_id.id === courseId)
             .map(entry => ({
-              date: new Date(entry.created_at).toLocaleDateString(), // Format date
+              date: new Date(entry.created_at).toLocaleDateString(), 
               status: entry.is_present ? "Present" : "Absent",
             }));
 

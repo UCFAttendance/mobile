@@ -1,153 +1,18 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
-
-const CourseWidget = ({ course, isExpanded, onToggle, attendanceRecords, index }) => {
-  const contentRef = useRef(null);
-  const [contentHeight, setContentHeight] = useState(0);
-
- 
-  useLayoutEffect(() => {
-    if (isExpanded && contentRef.current) {
-      setContentHeight(contentRef.current.scrollHeight);
-    } else {
-      setContentHeight(0);
-    }
-  }, [isExpanded, attendanceRecords]);
-
-
-  const headerColors = ["#3dc1d3", "#ff6b6b"];
-  const backgroundColor = headerColors[index % 2]; 
-
-  return (
-    <div
-      className="rounded-lg shadow-md overflow-hidden transition-all duration-300"
-      style={{ width: "100%", minHeight: "15vh" }}
-    >
-      {/* Header - Clickable to Toggle */}
-      <div
-        style={{
-          backgroundColor: backgroundColor,
-          height: "7.5vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 10px",
-          cursor: "pointer",
-        }}
-        onClick={onToggle}
-      >
-        <span
-          className="font-semibold text-black"
-          style={{ fontSize: "1.1rem" }}
-        >
-          {course.name}
-        </span>
-        <span className="text-white text-2xl">{isExpanded ? "−" : "+"}</span>
-      </div>
-
-      {/* White Base Section */}
-      <div
-        style={{
-          backgroundColor: "#ffffff",
-          height: isExpanded ? "0vh" : "7.5vh",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 10px",
-          transition: isExpanded ? "none" : "height 1.1s ease-in-out",
-          cursor: "pointer",
-        }}
-        onClick={onToggle} 
-      >
-        {/* Add static content here if needed */}
-      </div>
-
-      {/* Expandable Attendance Section - Clickable to Collapse */}
-      <div
-        ref={contentRef}
-        style={{
-          maxHeight: isExpanded ? `${contentHeight}px` : "0px",
-          overflow: "hidden",
-          transition: "max-height 0.7s ease-in-out",
-          backgroundColor: "#ffffff",
-          cursor: isExpanded ? "pointer" : "default", 
-        }}
-        onClick={isExpanded ? onToggle : undefined} 
-      >
-        <div style={{ padding: "2vh" }}>
-          {attendanceRecords && attendanceRecords.length > 0 ? (
-            attendanceRecords.map((record, index) => (
-              <div
-                key={index}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "1vh 0",
-                }}
-              >
-                <div>
-                  <p style={{ fontWeight: "bold", color: "#333" }}>
-                    {course.name}
-                  </p>
-                  <p style={{ color: "#666" }}>{`${record.date}, ${record.time}`}</p>
-                </div>
-                <span
-                  style={{
-                    padding: "0.5vh 1vh",
-                    borderRadius: "9999px",
-                    fontWeight: "medium",
-                    ...(record.status === "Success"
-                      ? {
-                          backgroundColor: "#D4EDDA",
-                          color: "#155724",
-                          border: "2px solid #C3E6CB",
-                        }
-                      : record.status === "Failed"
-                      ? {
-                          backgroundColor: "#F8D7DA",
-                          color: "#721C24",
-                          border: "2px solid #F5C6CB",
-                        }
-                      : {
-                          backgroundColor: "#FFF3CD",
-                          color: "#856404",
-                          border: "2px solid #FFEEBA",
-                        }),
-                  }}
-                >
-                  {record.status}
-                </span>
-              </div>
-            ))
-          ) : (
-            <p style={{ color: "#666" }}>
-              No attendance records for this course.
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
 const History = () => {
-  const [courses, setCourses] = useState([]);
-  const [expandedCourseIds, setExpandedCourseIds] = useState({});
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [attendanceRecords, setAttendanceRecords] = useState({});
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  
   useEffect(() => {
     const fetchAttendanceData = async () => {
       try {
@@ -174,39 +39,35 @@ const History = () => {
             token = refreshResponse.data.access;
             localStorage.setItem("accessToken", token);
 
-            return instance.get("/api/v1/attendance/");
+            
+            const retryResponse = await instance.get("/api/v1/attendance/");
+
+            
+            window.location.reload();
+            return retryResponse; 
           }
           throw err;
         });
 
         const attendanceData = response.data;
-        const uniqueCourses = {};
-        const recordsByCourse = {};
 
-        attendanceData.forEach((entry) => {
-          const courseId = entry.session_id.course_id.id;
-          const courseName = entry.session_id.course_id.name;
-
-          if (!uniqueCourses[courseId]) {
-            uniqueCourses[courseId] = { id: courseId, name: courseName };
-            recordsByCourse[courseId] = [];
-          }
-
-          const createdAt = new Date(entry.created_at);
-          recordsByCourse[courseId].push({
-            date: createdAt.toLocaleDateString(),
-            time: createdAt.toLocaleTimeString(),
+        
+        const sortedRecords = attendanceData
+          .map((entry) => ({
+            courseName: entry.session_id.course_id.name,
+            date: new Date(entry.created_at).toLocaleDateString(),
+            time: new Date(entry.created_at).toLocaleTimeString(),
             status:
               entry.is_present === true
                 ? "Success"
                 : entry.face_recognition_status === "PENDING"
                 ? "Processing"
                 : "Failed",
-          });
-        });
+            createdAt: new Date(entry.created_at), 
+          }))
+          .sort((a, b) => b.createdAt - a.createdAt); 
 
-        setCourses(Object.values(uniqueCourses));
-        setAttendanceRecords(recordsByCourse);
+        setAttendanceRecords(sortedRecords);
         setLoading(false);
       } catch (err) {
         console.error("Error fetching attendance data:", err);
@@ -218,82 +79,78 @@ const History = () => {
     fetchAttendanceData();
   }, []);
 
-  const handleToggleExpand = (courseId) => {
-    setExpandedCourseIds((prev) => ({
-      ...prev,
-      [courseId]: !prev[courseId],
-    }));
-  };
-
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-        <p style={{ color: "#666" }}>Loading attendance data...</p>
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-gray-600">Loading attendance data...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-        <p style={{ color: "#e53e3e" }}>{error}</p>
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-red-500">{error}</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#F7FAFC" }}>
-      {/* Header */}
+    <div className="min-h-screen bg-gray-100">
+      {/* Header (without title) */}
       <header
-        style={{
-          backgroundColor: "#FFC904",
-          height: "60px",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 10px",
-        }}
+        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full p-2"
       >
         <img
           src="/images/team-logo.png"
           alt="Team Logo"
-          style={{ width: "60px", height: "auto", borderRadius: "5px" }}
+          className="w-[60px] h-auto rounded-md"
         />
-        <h1 style={{ color: "#000000", fontSize: "20px", fontWeight: "bold", paddingLeft: "15px" }}>
-          History
-        </h1>
       </header>
 
       {/* Main Content */}
-      <div style={{ padding: "2vh", width: "100%" }}>
-        <h2 style={{ fontSize: "1.25rem", fontWeight: "600", marginBottom: "1rem", textAlign: "center", color: "#333" }}>
-          {/* Optional subtitle if desired */}
-        </h2>
+      <div className="p-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">History</h1>
 
-        {courses.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#666" }}>No courses found.</p>
+        {attendanceRecords.length === 0 ? (
+          <p className="text-center text-gray-600">No attendance records found.</p>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                windowWidth <= 430
-                  ? "1fr"
-                  : windowWidth <= 768
-                  ? "1fr 1fr"
-                  : "1fr",
-              gap: "1rem",
-              alignItems: "start",
-            }}
-          >
-            {courses.map((course, index) => (
-              <CourseWidget
-                key={course.id}
-                course={course}
-                isExpanded={expandedCourseIds[course.id] || false}
-                onToggle={() => handleToggleExpand(course.id)}
-                attendanceRecords={attendanceRecords[course.id] || []}
-                index={index}
-              />
+          <div className="space-y-2"> {/* Reduced spacing between records */}
+            {attendanceRecords.map((record, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center p-2 bg-white rounded-lg shadow-md" 
+              >
+                <div>
+                  <p className="font-bold text-gray-800">{record.courseName}</p>
+                  <p className="text-gray-500 text-sm">{`${record.date}, ${record.time}`}</p>
+                </div>
+                <span
+                  className="px-2 py-1 rounded-full font-medium"
+                  style={{
+                    ...(record.status === "Success"
+                      ? {
+                          backgroundColor: "#D4EDDA",
+                          color: "#155724",
+                          border: "2px solid #4A9A6E", 
+                          
+                        }
+                      : record.status === "Failed"
+                      ? {
+                          backgroundColor: "#F8D7DA",
+                          color: "#721C24",
+                          border: "2px solid #A84444", 
+                        }
+                      : {
+                          backgroundColor: "#FFF3CD",
+                          color: "#856404",
+                          border: "2px solid #A68A1A", 
+                        }),
+                  }}
+                >
+                  {record.status}
+                </span>
+              </div>
             ))}
           </div>
         )}
@@ -301,31 +158,22 @@ const History = () => {
 
       {/* Navigation Bar */}
       <div
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          width: "100%",
-          backgroundColor: "#E2E8F0",
-          padding: "0.5rem",
-          display: "flex",
-          justifyContent: "space-around",
-        }}
+        className="fixed bottom-0 left-0 w-full bg-gray-200 p-2 flex justify-around"
       >
-        <a href="#" style={{ color: "#4A5568", textAlign: "center" }}>
-          <span style={{ display: "block" }}>Dashboard</span>
+        <a href="#" className="text-gray-700 text-center">
+          <span className="block">Dashboard</span>
           <i className="fas fa-home"></i>
         </a>
-        <a href="#" style={{ color: "#4A5568", textAlign: "center" }}>
-          <span style={{ display: "block" }}>Attendance</span>
+        <a href="#" className="text-gray-700 text-center">
+          <span className="block">Attendance</span>
           <i className="fas fa-qrcode"></i>
         </a>
-        <a href="#" style={{ color: "#3182CE", textAlign: "center" }}>
-          <span style={{ display: "block" }}>History</span>
+        <a href="#" className="text-blue-600 text-center">
+          <span className="block">History</span>
           <i className="fas fa-history"></i>
         </a>
-        <a href="#" style={{ color: "#4A5568", textAlign: "center" }}>
-          <span style={{ display: "block" }}>Settings</span>
+        <a href="#" className="text-gray-700 text-center">
+          <span className="block">Settings</span>
           <i className="fas fa-cog"></i>
         </a>
       </div>

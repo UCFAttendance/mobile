@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink, Routes, Route, useNavigate } from 'react-router-dom';
-import { FaHome, FaQrcode, FaBook, FaUserCircle, FaHistory, FaCog } from 'react-icons/fa';
-import Dashboard from './Dashboard';
-import Courses from './Courses';
-import Scan from './Scan';
-import ScanQR from './ScanQR';
-import History from './History';
-import Settings from './Settings';
-import MobileDashboard from './MobileDashboard';
-import BottomNav from './BottomNav';
+import React, { useState, useEffect } from "react";
+import { NavLink, Routes, Route, useNavigate } from "react-router-dom";
+import { FaHome, FaQrcode, FaBook, FaUserCircle, FaHistory, FaCog } from "react-icons/fa";
+import Dashboard from "./Dashboard";
+import Courses from "./Courses";
+import Scan from "./Scan";
+import ScanQR from "./ScanQR";
+import History from "./History";
+import Settings from "./Settings";
+import MobileDashboard from "./MobileDashboard";
+import BottomNav from "./BottomNav";
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
-  const [studentName, setStudentName] = useState('Student');
+  const [studentName, setStudentName] = useState("Student");
   const [isMobile, setIsMobile] = useState(false);
   const [hasRedirected, setHasRedirected] = useState(false);
 
@@ -22,19 +22,19 @@ const StudentDashboard = () => {
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
   useEffect(() => {
     if (!hasRedirected) {
-      if (window.location.pathname === '/student' || window.location.pathname === '/student/') {
+      if (window.location.pathname === "/student" || window.location.pathname === "/student/") {
         if (isMobile) {
-          navigate('/student/dashboard');
+          navigate("/student/dashboard");
         } else {
-          navigate('/student/dashboard');
+          navigate("/student/dashboard");
         }
       }
       setHasRedirected(true);
@@ -42,22 +42,22 @@ const StudentDashboard = () => {
   }, [isMobile, hasRedirected, navigate]);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
-        setStudentName(user.name || 'Student');
+        setStudentName(user.name || "Student");
       } catch (error) {
-        console.error('Error parsing student data:', error);
+        console.error("Error parsing student data:", error);
       }
     }
   }, []);
 
   const handleSignOut = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    navigate('/');
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    navigate("/");
   };
 
   // ---------- MOBILE LAYOUT ----------
@@ -85,9 +85,9 @@ const StudentDashboard = () => {
         {/* Top Section */}
         <div>
           <div className="mb-5 flex items-center">
-            <img 
-              src="/images/team-logo.png" 
-              alt="Team Logo" 
+            <img
+              src="/images/team-logo.png"
+              alt="Team Logo"
               className="w-[50px] h-auto rounded-md mr-3"
             />
           </div>
@@ -96,10 +96,12 @@ const StudentDashboard = () => {
           <ul className="list-none p-0">
             {/* Dashboard Entry */}
             <li className="mb-4">
-              <NavLink 
-                to="/student/dashboard" 
-                className={({ isActive }) => 
-                  `no-underline flex items-center p-2 rounded-md ${isActive ? 'text-blue-700 bg-gray-200' : 'text-gray-700 hover:bg-gray-200'}`
+              <NavLink
+                to="/student/dashboard"
+                className={({ isActive }) =>
+                  `no-underline flex items-center p-2 rounded-md ${
+                    isActive ? "text-blue-700 bg-gray-200" : "text-gray-700 hover:bg-gray-200"
+                  }`
                 }
               >
                 <FaHome className="mr-2 text-lg" />
@@ -109,10 +111,12 @@ const StudentDashboard = () => {
 
             {/* Scan Entry */}
             <li className="mb-4">
-              <NavLink 
-                to="/student/scan" 
-                className={({ isActive }) => 
-                  `no-underline flex items-center p-2 rounded-md ${isActive ? 'text-blue-700 bg-gray-200' : 'text-gray-700 hover:bg-gray-200'}`
+              <NavLink
+                to="/student/scan"
+                className={({ isActive }) =>
+                  `no-underline flex items-center p-2 rounded-md ${
+                    isActive ? "text-blue-700 bg-gray-200" : "text-gray-700 hover:bg-gray-200"
+                  }`
                 }
               >
                 <FaQrcode className="mr-2 text-lg" />
@@ -122,10 +126,12 @@ const StudentDashboard = () => {
 
             {/* Courses Entry */}
             <li className="mb-4">
-              <NavLink 
-                to="/student/courses" 
-                className={({ isActive }) => 
-                  `no-underline flex items-center p-2 rounded-md ${isActive ? 'text-blue-700 bg-gray-200' : 'text-gray-700 hover:bg-gray-200'}`
+              <NavLink
+                to="/student/courses"
+                className={({ isActive }) =>
+                  `no-underline flex items-center p-2 rounded-md ${
+                    isActive ? "text-blue-700 bg-gray-200" : "text-gray-700 hover:bg-gray-200"
+                  }`
                 }
               >
                 <FaHistory className="mr-2 text-lg" />
@@ -135,10 +141,12 @@ const StudentDashboard = () => {
 
             {/* Settings Page */}
             <li className="mb-4">
-              <NavLink 
-                to="/student/settings" 
-                className={({ isActive }) => 
-                  `no-underline flex items-center p-2 rounded-md ${isActive ? 'text-blue-700 bg-gray-200' : 'text-gray-700 hover:bg-gray-200'}`
+              <NavLink
+                to="/student/settings"
+                className={({ isActive }) =>
+                  `no-underline flex items-center p-2 rounded-md ${
+                    isActive ? "text-blue-700 bg-gray-200" : "text-gray-700 hover:bg-gray-200"
+                  }`
                 }
               >
                 <FaCog className="mr-2 text-lg" />
@@ -148,8 +156,8 @@ const StudentDashboard = () => {
           </ul>
         </div>
 
-        <div 
-          onClick={handleSignOut} 
+        <div
+          onClick={handleSignOut}
           className="flex items-center p-2 bg-gray-100 rounded-md cursor-pointer hover:bg-gray-200"
         >
           <FaUserCircle className="text-2xl mr-2" />
@@ -158,7 +166,7 @@ const StudentDashboard = () => {
       </nav>
 
       {/* Desktop Main Content Area */}
-      <div className="flex-1 p-5 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <Routes>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="courses" element={<Courses />} />
