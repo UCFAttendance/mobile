@@ -8,6 +8,7 @@ const ChangePassword = () => {
     localStorage.getItem("theme") === "dark"
   );
   const [passwords, setPasswords] = useState({
+    oldPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
@@ -39,15 +40,17 @@ const ChangePassword = () => {
     try {
       const token = localStorage.getItem("accessToken");
       const response = await fetch(
-        `${process.env.REACT_APP_BASE_URL}/api/v1/user/change-password/`,
+        `${process.env.REACT_APP_BASE_URL}/api-auth/v1/password/change/`,
         {
-          method: "PUT",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            new_password: passwords.newPassword,
+            new_password1: passwords.newPassword,
+            new_password2: passwords.confirmPassword,
+            old_password: passwords.oldPassword,
           }),
         }
       );
@@ -55,13 +58,13 @@ const ChangePassword = () => {
       if (response.ok) {
         setMessage({ text: "Password successfully changed!", isError: false });
         // Clear password fields
-        setPasswords({ newPassword: "", confirmPassword: "" });
+        setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" });
         // Optionally redirect after successful change
         setTimeout(() => navigate("/settings"), 2000);
       } else {
         const error = await response.json();
         setMessage({
-          text: error.message || "Failed to change password",
+          text: error.detail || "Failed to change password",
           isError: true,
         });
       }
@@ -162,6 +165,52 @@ const ChangePassword = () => {
               {message.text}
             </div>
           )}
+
+          {/* Old Password Input */}
+          <div style={{ marginBottom: "20px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                marginBottom: "8px",
+              }}
+            >
+              <div
+                style={{
+                  color: "#FFD700",
+                  fontSize: "18px",
+                  marginRight: "10px",
+                }}
+              >
+                <FaLock />
+              </div>
+              <label
+                style={{
+                  fontSize: "16px",
+                  color: darkMode ? "#fff" : "#333",
+                  fontWeight: "500",
+                }}
+              >
+                Old Password
+              </label>
+            </div>
+            <input
+              type="password"
+              name="oldPassword"
+              value={passwords.oldPassword}
+              onChange={handleInputChange}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "8px",
+                border: darkMode ? "1px solid #444" : "1px solid #ddd",
+                backgroundColor: darkMode ? "#2a2a2a" : "#fff",
+                color: darkMode ? "#fff" : "#333",
+                fontSize: "16px",
+                outline: "none",
+              }}
+            />
+          </div>
 
           {/* New Password Input */}
           <div style={{ marginBottom: "20px" }}>
