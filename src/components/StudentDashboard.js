@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink, Routes, Route, useNavigate, Outlet } from 'react-router-dom';
-import { FaHome, FaQrcode, FaBook, FaUserCircle, FaHistory, FaCog } from 'react-icons/fa';
-import Dashboard from './Dashboard';
-import Courses from './Courses';
-import Scan from './Scan';
-import ScanQR from './ScanQR';
-import History from './History';
-import Settings from './Settings';
-import MobileDashboard from './MobileDashboard';
-import BottomNav from './BottomNav';
+import React, { useState, useEffect } from "react";
+import { NavLink, Routes, Route, useNavigate, Outlet } from "react-router-dom";
+import { FaHome, FaQrcode, FaBook, FaUserCircle, FaHistory, FaCog } from "react-icons/fa";
+import Dashboard from "./Dashboard";
+import Courses from "./Courses";
+import Scan from "./Scan";
+import ScanQR from "./ScanQR";
+import History from "./History";
+import Settings from "./Settings";
+import MobileDashboard from "./MobileDashboard";
+import BottomNav from "./BottomNav";
 import Appearance from "./Appearance";
 import AccountSettings from "./AccountSettings";
 import ChangePassword from "./ChangePassword";
@@ -18,7 +18,7 @@ import CameraPermissions from "./CameraPermissions";
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
-  const [studentName, setStudentName] = useState('Student');
+  const [studentName, setStudentName] = useState("Student");
   const [isMobile, setIsMobile] = useState(false);
   const [hasRedirected, setHasRedirected] = useState(false);
  // Manage dark mode state here so it can be passed down
@@ -41,51 +41,49 @@ const StudentDashboard = () => {
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
   useEffect(() => {
     if (!hasRedirected) {
-      if (window.location.pathname === '/student' || window.location.pathname === '/student/') {
+      if (window.location.pathname === "/student" || window.location.pathname === "/student/") {
         if (isMobile) {
-          navigate('/student/dashboard'); // Instead of '/student/attendance'
+          navigate("/student/dashboard");
         } else {
-          navigate('/student/dashboard');
+          navigate("/student/dashboard");
         }
       }
       setHasRedirected(true);
     }
   }, [isMobile, hasRedirected, navigate]);
-  
-  
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
-        setStudentName(user.name || 'Student');
+        setStudentName(user.name || "Student");
       } catch (error) {
-        console.error('Error parsing student data:', error);
+        console.error("Error parsing student data:", error);
       }
     }
   }, []);
 
   const handleSignOut = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    navigate('/');
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    navigate("/");
   };
 
   // ---------- MOBILE LAYOUT ----------
   if (isMobile) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingBottom: '60px' }}>
+      <div className="flex flex-col h-screen">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16">
           <Routes>
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
@@ -94,122 +92,100 @@ const StudentDashboard = () => {
             <Route path="settings" element={<Settings />} />
           </Routes>
         </div>
-        <BottomNav /> {/* Ensure BottomNav is only shown on mobile */}
+        <BottomNav />
       </div>
     );
   }
-  
 
   // ---------- DESKTOP LAYOUT ----------
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <nav style={{
-        width: '250px',
-        backgroundColor: '#f8f9fa',
-        borderRight: '1px solid #ddd',
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-      }}>
+    <div className="flex h-screen">
+      <nav className="w-[250px] bg-gray-100 border-r border-gray-200 p-5 flex flex-col justify-between">
         {/* Top Section */}
         <div>
-          <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
-            <img 
-              src="/images/team-logo.png" 
-              alt="Team Logo" 
-              style={{
-                width: '50px',
-                height: 'auto',
-                borderRadius: '5px',
-                marginRight: '10px',
-              }} 
+          <div className="mb-5 flex items-center">
+            <img
+              src="/images/team-logo.png"
+              alt="Team Logo"
+              className="w-[50px] h-auto rounded-md mr-3"
             />
           </div>
 
           {/* Sidebar Links */}
-          <ul style={{ listStyle: 'none', padding: 0 }}>
+          <ul className="list-none p-0">
             {/* Dashboard Entry */}
-            <li style={{ marginBottom: '15px' }}>
-              <NavLink to="/student/dashboard" style={({ isActive }) => ({
-                textDecoration: 'none',
-                color: isActive ? '#007bff' : '#333',
-                backgroundColor: isActive ? '#dee2e6' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '10px',
-                borderRadius: '5px',
-              })}>
-                <FaHome style={{ marginRight: '10px', fontSize: '18px' }} />
+            <li className="mb-4">
+              <NavLink
+                to="/student/dashboard"
+                className={({ isActive }) =>
+                  `no-underline flex items-center p-2 rounded-md ${
+                    isActive ? "text-blue-700 bg-gray-200" : "text-gray-700 hover:bg-gray-200"
+                  }`
+                }
+              >
+                <FaHome className="mr-2 text-lg" />
                 Dashboard
               </NavLink>
             </li>
 
             {/* Scan Entry */}
-            <li style={{ marginBottom: '15px' }}>
-              <NavLink to="/student/scan" style={({ isActive }) => ({
-                textDecoration: 'none',
-                color: isActive ? '#007bff' : '#333',
-                backgroundColor: isActive ? '#dee2e6' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '10px',
-                borderRadius: '5px',
-              })}>
-                <FaQrcode style={{ marginRight: '10px', fontSize: '18px' }} />
+            <li className="mb-4">
+              <NavLink
+                to="/student/scan"
+                className={({ isActive }) =>
+                  `no-underline flex items-center p-2 rounded-md ${
+                    isActive ? "text-blue-700 bg-gray-200" : "text-gray-700 hover:bg-gray-200"
+                  }`
+                }
+              >
+                <FaQrcode className="mr-2 text-lg" />
                 Scan
               </NavLink>
             </li>
 
             {/* Courses Entry */}
-            <li style={{ marginBottom: '15px' }}>
-              <NavLink to="/student/courses" style={({ isActive }) => ({
-                textDecoration: 'none',
-                color: isActive ? '#007bff' : '#333',
-                backgroundColor: isActive ? '#dee2e6' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '10px',
-                borderRadius: '5px',
-              })}>
-                <FaBook style={{ marginRight: '10px', fontSize: '18px' }} />
+            <li className="mb-4">
+              <NavLink
+                to="/student/courses"
+                className={({ isActive }) =>
+                  `no-underline flex items-center p-2 rounded-md ${
+                    isActive ? "text-blue-700 bg-gray-200" : "text-gray-700 hover:bg-gray-200"
+                  }`
+                }
+              >
+                <FaHistory className="mr-2 text-lg" />
                 History
               </NavLink>
             </li>
 
             {/* Settings Page */}
-            <li style={{ marginBottom: '15px' }}>
-              <NavLink to="/student/settings" style={({ isActive }) => ({
-                textDecoration: 'none',
-                color: isActive ? '#007bff' : '#333',
-                backgroundColor: isActive ? '#dee2e6' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '10px',
-                borderRadius: '5px',
-              })}>
-                <FaCog style={{ marginRight: '10px', fontSize: '18px' }} />
+            <li className="mb-4">
+              <NavLink
+                to="/student/settings"
+                className={({ isActive }) =>
+                  `no-underline flex items-center p-2 rounded-md ${
+                    isActive ? "text-blue-700 bg-gray-200" : "text-gray-700 hover:bg-gray-200"
+                  }`
+                }
+              >
+                <FaCog className="mr-2 text-lg" />
                 Settings
               </NavLink>
             </li>
           </ul>
         </div>
 
-        <div onClick={handleSignOut} style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '10px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '5px',
-          cursor: 'pointer',
-        }}>
-          <FaUserCircle style={{ fontSize: '24px', marginRight: '10px' }} />
-          <span style={{ fontSize: '16px', color: '#333' }}>{studentName}</span>
+        <div
+          onClick={handleSignOut}
+          className="flex items-center p-2 bg-gray-100 rounded-md cursor-pointer hover:bg-gray-200"
+        >
+          <FaUserCircle className="text-2xl mr-2" />
+          <span className="text-base text-gray-700">{studentName}</span>
         </div>
       </nav>
 
       {/* Desktop Main Content Area */}
-      <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+      <div className="flex-1 overflow-y-auto">
         <Routes>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="courses" element={<Courses />} />

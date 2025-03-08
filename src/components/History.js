@@ -1,194 +1,181 @@
 import React, { useState, useEffect } from "react";
-import { FiChevronLeft, FiCalendar } from "react-icons/fi";
-import "./History.css";
+import axios from "axios";
 
-// Mock data
-const mockCourses = [
-  { id: 1, name: "COT 3100 - Fall 23", attendancePercentage: 85 },
-  { id: 2, name: "CNT 4900 - Fall 23", attendancePercentage: 90 },
-  { id: 3, name: "COP 3330 - Spring 24", attendancePercentage: 75 },
-  { id: 4, name: "CIS 1000 - Summer 24", attendancePercentage: 0 },
-  { id: 5, name: "CIS 2000 - Fall 24", attendancePercentage: null }, // no attendance yet
-];
-
-const mockAttendanceHistory = [
-  { date: "2023-01-20", status: "Present" },
-  { date: "2023-01-19", status: "Absent" },
-  { date: "2023-01-18", status: "Present" },
-  { date: "2023-01-17", status: "Present" },
-];
-
-const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-/**
- * pageIndex: 
- *   0 => Courses list
- *   1 => Details page
- *   2 => Calendar page
- */
 const History = () => {
-  const [pageIndex, setPageIndex] = useState(0);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [progress, setProgress] = useState(0);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  // Animate the attendance circle each time we pick a course
   useEffect(() => {
-    if (selectedCourse && selectedCourse.attendancePercentage != null) {
-      let current = 0;
-      const target = selectedCourse.attendancePercentage;
-      const timer = setInterval(() => {
-        current++;
-        if (current > target) {
-          clearInterval(timer);
-        } else {
-          setProgress(current);
-        }
-      }, 10);
-      return () => clearInterval(timer);
-    } else {
-      setProgress(0);
-    }
-  }, [selectedCourse]);
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-  // ====== Navigation Handlers ======
-  const handleCourseSelect = (course) => {
-    setSelectedCourse(course);
-    setPageIndex(1); // Slide to Details
-  };
+  useEffect(() => {
+    const fetchAttendanceData = async () => {
+      try {
+        let token = localStorage.getItem("accessToken");
+        if (!token) throw new Error("No access token found.");
 
-  // From Details -> back to Courses
-  const goBackToCourses = () => {
-    setPageIndex(0);
-    // Optionally unselect the course after transition
-    setTimeout(() => setSelectedCourse(null), 300);
-  };
+        const instance = axios.create({
+          baseURL: process.env.REACT_APP_BASE_URL,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
 
-  // From Details -> Calendar
-  const goToCalendar = () => {
-    setPageIndex(2);
-  };
+        let response = await instance.get("/api/v1/attendance/").catch(async (err) => {
+          if (err.response?.status === 401) {
+            const refreshToken = localStorage.getItem("refreshToken");
+            if (!refreshToken) throw new Error("No refresh token available.");
 
-  // From Calendar -> back to Details
-  const goBackToDetails = () => {
-    setPageIndex(1);
-  };
+            const refreshResponse = await axios.post(
+              `${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`,
+              { refresh: refreshToken }
+            );
+            token = refreshResponse.data.access;
+            localStorage.setItem("accessToken", token);
+
+            
+            const retryResponse = await instance.get("/api/v1/attendance/");
+
+            
+            window.location.reload();
+            return retryResponse; 
+          }
+          throw err;
+        });
+
+        const attendanceData = response.data;
+
+        
+        const sortedRecords = attendanceData
+          .map((entry) => ({
+            courseName: entry.session_id.course_id.name,
+            date: new Date(entry.created_at).toLocaleDateString(),
+            time: new Date(entry.created_at).toLocaleTimeString(),
+            status:
+              entry.is_present === true
+                ? "Success"
+                : entry.face_recognition_status === "PENDING"
+                ? "Processing"
+                : "Failed",
+            createdAt: new Date(entry.created_at), 
+          }))
+          .sort((a, b) => b.createdAt - a.createdAt); 
+
+        setAttendanceRecords(sortedRecords);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching attendance data:", err);
+        setError("Unable to load attendance history.");
+        setLoading(false);
+      }
+    };
+
+    fetchAttendanceData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-gray-600">Loading attendance data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="history-container"
-      style={{
-        /* Slide horizontally in increments of 100vw */
-        transform: `translateX(-${pageIndex * 100}vw)`,
-      }}
-    >
-      {/* ========== PAGE 0: COURSES ========== */}
-      <div className="page course-list">
-        <h2 style={{ textAlign: "center", marginBottom: "20px" }}>Your Courses</h2>
-        <div className="vertical-courses">
-          {mockCourses.map((course) => (
-            <div
-              key={course.id}
-              className="course-widget"
-              onClick={() => handleCourseSelect(course)}
-            >
-              <span className="course-text">{course.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-100">
+      {/* Header (without title) */}
+      <header
+        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full p-2"
+      >
+        <img
+          src="/images/team-logo.png"
+          alt="Team Logo"
+          className="w-[60px] h-auto rounded-md"
+        />
+      </header>
 
-      {/* ========== PAGE 1: DETAILS ========== */}
-      <div className="page course-details">
-        {selectedCourse && (
-          <>
-            {/* Top bar with a bigger back arrow + calendar icon */}
-            <div className="top-bar">
-              {/* Larger back arrow, a bit lower by using margin-top */}
-              <FiChevronLeft 
-                className="icon back-icon" 
-                onClick={goBackToCourses} 
-              />
-              <FiCalendar 
-                className="icon calendar-icon"
-                onClick={goToCalendar}
-              />
-            </div>
+      {/* Main Content */}
+      <div className="p-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">History</h1>
 
-            <div className="details-content">
-              {/* Attendance Circle */}
-              <div className="progress-circle">
-                <div
-                  className="progress-inner"
+        {attendanceRecords.length === 0 ? (
+          <p className="text-center text-gray-600">No attendance records found.</p>
+        ) : (
+          <div className="space-y-2"> {/* Reduced spacing between records */}
+            {attendanceRecords.map((record, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center p-2 bg-white rounded-lg shadow-md" 
+              >
+                <div>
+                  <p className="font-bold text-gray-800">{record.courseName}</p>
+                  <p className="text-gray-500 text-sm">{`${record.date}, ${record.time}`}</p>
+                </div>
+                <span
+                  className="px-2 py-1 rounded-full font-medium"
                   style={{
-                    background: `conic-gradient(#d4a72c ${progress}%, #e0e0e0 ${progress}%)`,
+                    ...(record.status === "Success"
+                      ? {
+                          backgroundColor: "#D4EDDA",
+                          color: "#155724",
+                          border: "2px solid #4A9A6E", 
+                          
+                        }
+                      : record.status === "Failed"
+                      ? {
+                          backgroundColor: "#F8D7DA",
+                          color: "#721C24",
+                          border: "2px solid #A84444", 
+                        }
+                      : {
+                          backgroundColor: "#FFF3CD",
+                          color: "#856404",
+                          border: "2px solid #A68A1A", 
+                        }),
                   }}
                 >
-                  <div className="progress-content">
-                    <h3>{progress}%</h3>
-                    <p>Attendance</p>
-                  </div>
-                </div>
+                  {record.status}
+                </span>
               </div>
-
-              {/* Attendance History Listing */}
-              <div className="attendance-list">
-                <h3>Attendance History</h3>
-                {mockAttendanceHistory.map((item) => (
-                  <div key={item.date} className="attendance-item">
-                    <span className="attendance-date">{item.date}</span>
-                    <span className={`status-pill ${item.status.toLowerCase()}`}>
-                      {item.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* ========== PAGE 2: CALENDAR ========== */}
-      <div className="page course-calendar">
-        <div className="top-bar">
-          {/* Larger back arrow to return from Calendar -> Details */}
-          <FiChevronLeft 
-            className="icon back-icon" 
-            onClick={goBackToDetails} 
-          />
-          <h3 style={{ marginLeft: "10px" }}>
-            {selectedCourse ? selectedCourse.name : "Attendance Calendar"}
-          </h3>
-        </div>
-
-        {/* Rough Canvas-style monthly calendar */}
-        <div className="calendar-container">
-          <div className="calendar-header">
-            <span className="month-label">April ▼</span>
-            <span className="year-label">2025</span>
-            <span className="right-link">Calendars</span>
-          </div>
-          {/* Days-of-week row */}
-          <div className="days-of-week">
-            {daysOfWeek.map((day) => (
-              <div key={day}>{day}</div>
-            ))}
-          </div>
-          {/* Dates grid: placeholder 30 days */}
-          <div className="dates-grid">
-            {Array.from({ length: 30 }, (_, i) => i + 1).map((dateNum) => (
-              <div className="date-cell" key={dateNum}>
-                {dateNum}
-              </div>
-            ))}
-          </div>
-          {/* Example "events" or attendance notes */}
-          <div className="calendar-events">
-            <div className="event">
-              <h4>Biology 101</h4>
-              <p>Group Assignment Week 2</p>
-            </div>
-          </div>
-        </div>
+      {/* Navigation Bar */}
+      <div
+        className="fixed bottom-0 left-0 w-full bg-gray-200 p-2 flex justify-around"
+      >
+        <a href="#" className="text-gray-700 text-center">
+          <span className="block">Dashboard</span>
+          <i className="fas fa-home"></i>
+        </a>
+        <a href="#" className="text-gray-700 text-center">
+          <span className="block">Attendance</span>
+          <i className="fas fa-qrcode"></i>
+        </a>
+        <a href="#" className="text-blue-600 text-center">
+          <span className="block">History</span>
+          <i className="fas fa-history"></i>
+        </a>
+        <a href="#" className="text-gray-700 text-center">
+          <span className="block">Settings</span>
+          <i className="fas fa-cog"></i>
+        </a>
       </div>
     </div>
   );
