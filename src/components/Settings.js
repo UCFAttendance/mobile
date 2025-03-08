@@ -82,9 +82,14 @@ const Settings = () => {
           <Option
             icon={<FaMapMarkerAlt />}
             label="Location"
+            onClick={() => navigate("/location")}
             darkMode={darkMode}
           />
-          <Option icon={<FaCameraRetro />} label="Camera" darkMode={darkMode} />
+          <Option 
+            icon={<FaCameraRetro />} 
+            label="Camera" 
+            onClick={() => navigate("/camerapermissions")}
+            darkMode={darkMode} />
           <Option
             icon={<FaEye />}
             label="Appearance"

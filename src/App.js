@@ -21,6 +21,8 @@ import { useNavigate } from "react-router-dom";
 import ForgotPassword from "./components/ForgotPassword";
 import AccountSettings from "./components/AccountSettings";
 import ChangePassword from "./components/ChangePassword";
+import Location from "./components/Location";
+import CameraPermissions from "./components/CameraPermissions";
 
 const App = () => {
   // Load dark mode preference from localStorage
@@ -28,6 +30,17 @@ const App = () => {
     localStorage.getItem("theme") === "dark"
   );
 
+  // Load location permission from localStorage
+  const [locationEnabled, setLocationEnabled] = useState(
+    localStorage.getItem("locationPermission") === "enabled"
+  );
+
+  // Load camera permission from localStorage
+  const [cameraPermission, setCameraPermission] = useState(
+    localStorage.getItem("cameraPermission") === "enabled"
+  );
+
+  
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark-theme");
@@ -42,16 +55,24 @@ const App = () => {
   return (
     <Router>
       <div className={`app-root ${darkMode ? "dark-theme" : "light-theme"}`}>
-        <AppContent darkMode={darkMode} setDarkMode={setDarkMode} />
+        <AppContent 
+          darkMode={darkMode} 
+          setDarkMode={setDarkMode} 
+          locationEnabled={locationEnabled} 
+          setLocationEnabled={setLocationEnabled} 
+          cameraPermission = {cameraPermission}
+          setCameraPermission = {setCameraPermission}
+        />
       </div>
     </Router>
   );
 };
 
-const AppContent = ({ darkMode, setDarkMode }) => {
+const AppContent = ({ darkMode, setDarkMode, locationEnabled, setLocationEnabled, cameraPermission, setCameraPermission }) => {
   const location = useLocation();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768); // Check if screen width is for mobile
   const shouldShowBottomNav = location.pathname !== "/" && isMobile;
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -131,6 +152,28 @@ const AppContent = ({ darkMode, setDarkMode }) => {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/account-settings" element={<AccountSettings />} />
           <Route path="/change-password" element={<ChangePassword />} />
+
+          {/* ✅ Location Route (Fix) */}
+          <Route 
+            path="/location" 
+            element={
+              <Location 
+                locationEnabled={locationEnabled} 
+                setLocationEnabled={setLocationEnabled} 
+              />
+            } 
+          />
+
+          {/* ✅ Camera Route (Fix) */}
+          <Route 
+            path="/camerapermissions" 
+            element={
+              <CameraPermissions 
+                cameraPermission={cameraPermission} 
+                setCameraPermission={setCameraPermission} 
+              />
+            } 
+          />
         </Routes>
       </div>
 

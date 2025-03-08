@@ -39,6 +39,7 @@ const Appearance = ({ darkMode, setDarkMode }) => {
           padding: "85px 20px",
           textAlign: "center",
           color: "#fff",
+          width: "100%",
         }}
       >
         <h2 style={{ margin: 0, fontSize: "24px" }}>Appearance</h2>

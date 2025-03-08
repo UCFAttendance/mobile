@@ -17,27 +17,9 @@ const Scan = () => {
   const BASE_URL = process.env.REACT_APP_BASE_URL;
 
   useEffect(() => {
-    // Ask for location permission at startup
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log("Location permission granted:", position.coords);
-        },
-        (error) => {
-          console.warn("Location permission denied:", error);
-          toast.error(
-            "Location services are disabled. Enable GPS for attendance."
-          );
-        }
-      );
-    } else {
-      toast.error("Geolocation is not supported in this browser.");
-    }
-
     // Start the camera in QR mode
     startCamera("qr");
     return () => stopCamera();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -121,96 +103,115 @@ const Scan = () => {
     stopCamera(); // Turn off the current camera stream
 
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) throw new Error("Authentication error. Please log in.");
+        const accessToken = localStorage.getItem("accessToken");
+        if (!accessToken) throw new Error("Authentication error. Please log in.");
 
-      // Parse the scanned QR code data
-      let scannedData;
-      try {
-        scannedData = JSON.parse(result.data || result);
-      } catch (parseError) {
-        console.error("Error parsing QR data:", parseError);
-        toast.error("Invalid QR Code format.");
-        setLoading(false);
-        return;
-      }
-
-      const { token, locationEnabled } = scannedData;
-
-      // API Request Function
-      const sendAttendanceRequest = async (
-        latitude = null,
-        longitude = null
-      ) => {
-        const payload = { token };
-        if (locationEnabled) {
-          payload.latitude = latitude;
-          payload.longitude = longitude;
-        }
-
-        const response = await axios.post(
-          `${BASE_URL}/api/v1/attendance/`,
-          payload,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        console.log("Attendance API Response:", response.data);
-        toast.success("Attendance recorded successfully!");
-
-        // Check if face recognition is required
-        const faceRecognitionEnabled =
-          response.data?.session_id?.face_recognition_enabled;
-        if (!faceRecognitionEnabled) {
-          setScannedData(response.data);
-          setDoneQr(true);
-          setTimeout(() => startCamera("face"), 300);
-        }
-      };
-
-      // Handle location requirement
-      if (locationEnabled) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            console.log("User Location:", latitude, longitude);
-            await sendAttendanceRequest(latitude, longitude);
-          },
-          (error) => {
-            console.error("Geolocation error:", error);
-            toast.error("Location access denied. Enable GPS to proceed.");
+        let scannedData;
+        try {
+            scannedData = JSON.parse(result.data || result);
+        } catch (parseError) {
+            console.error("Error parsing QR data:", parseError);
+            toast.error("Invalid QR Code format.");
             setLoading(false);
-          }
-        );
-      } else {
-        // If location is NOT required, send attendance request without GPS
-        await sendAttendanceRequest();
-      }
-    } catch (error) {
-      setTimeout(() => {
-        if (!messageDisplayed) {
-          toast.error(
-            error.response?.data?.message ||
-              "Invalid QR Code. Please try again."
-          );
-          setMessageDisplayed(true);
-          resetMessageFlag();
+            return;
         }
-      }, 5000);
+
+        const { token, locationEnabled } = scannedData;
+
+        // API Request Function
+        const sendAttendanceRequest = async (latitude = null, longitude = null) => {
+            const payload = { token };
+            if (locationEnabled && latitude !== null && longitude !== null) {
+                payload.latitude = latitude;
+                payload.longitude = longitude;
+            }
+
+            const response = await axios.post(
+                `${BASE_URL}/api/v1/attendance/`,
+                payload,
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            console.log("Attendance API Response:", response.data);
+            toast.success("Attendance recorded successfully!");
+
+            // Check if face recognition is required
+            const faceRecognitionEnabled = response.data?.session_id?.face_recognition_enabled;
+            if (!faceRecognitionEnabled) {
+                setScannedData(response.data);
+                setDoneQr(true);
+                setTimeout(() => startCamera("face"), 300);
+            }
+        };
+
+        // ✅ Only request location if `locationEnabled` is true AND the user has not already granted location access.
+        if (locationEnabled) {
+            navigator.permissions.query({ name: "geolocation" }).then((permission) => {
+                if (permission.state === "granted") {
+                    console.log("Location already granted.");
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            const { latitude, longitude } = position.coords;
+                            console.log("User Location:", latitude, longitude);
+                            await sendAttendanceRequest(latitude, longitude);
+                        },
+                        (error) => {
+                            console.error("Geolocation error:", error);
+                            toast.error("Location access denied. Enable GPS to proceed.");
+                            setLoading(false);
+                        }
+                    );
+                } else if (permission.state === "prompt") {
+                    console.log("Asking for location permission...");
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            const { latitude, longitude } = position.coords;
+                            console.log("User Location:", latitude, longitude);
+                            await sendAttendanceRequest(latitude, longitude);
+                        },
+                        (error) => {
+                            console.error("Geolocation error:", error);
+                            toast.error("Location access denied. Enable GPS to proceed.");
+                            setLoading(false);
+                        }
+                    );
+                } else {
+                    console.warn("Location permission is denied.");
+                    toast.error("Location permission denied. Please enable location to proceed.");
+                    setLoading(false);
+                }
+            });
+        } else {
+            // If location is NOT required, send attendance request without GPS
+            await sendAttendanceRequest();
+        }
+    } catch (error) {
+        setTimeout(() => {
+            if (!messageDisplayed) {
+                toast.error(
+                    error.response?.data?.message || "Invalid QR Code. Please try again."
+                );
+                setMessageDisplayed(true);
+                resetMessageFlag();
+            }
+        }, 5000);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
+
+
 
   const handlePhotoCapture = async () => {
     try {
       setLoading(true);
       const video = videoRef.current;
-      if (!video) {
+      if (!video) {https://chatgpt.com/c/673fd1a7-453c-8002-9897-f68683224fb9
         toast.error("No video stream available.");
         return;
       }

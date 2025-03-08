@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa"; // Import eye icons
 
 const PWAWelcomeLogin = () => {
   const [email, setEmail] = useState("");
@@ -10,6 +11,7 @@ const PWAWelcomeLogin = () => {
   const [darkMode, setDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
+  const [showPassword, setShowPassword] = useState(false); // Track password visibility
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,22 +50,12 @@ const PWAWelcomeLogin = () => {
         );
       }
 
-      // Store tokens and user info in localStorage
       localStorage.setItem("accessToken", data.access);
       localStorage.setItem("refreshToken", data.refresh);
-      localStorage.setItem("user", JSON.stringify(data.user)); // Store user object as a string
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-      console.log("Login successful:", data.user);
-
-      // Redirect based on device type
-      // if (window.innerWidth <= 768) {
-      //   navigate('/student/dashboard'); // Mobile users go to Mobile Dashboard
-      // } else {
-      //   navigate('/student/dashboard'); // Desktop users go to Desktop Dashboard
-      // }
       navigate("/student/dashboard");
     } catch (error) {
-      console.error("Login error:", error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -78,7 +70,7 @@ const PWAWelcomeLogin = () => {
         alignItems: "center",
         justifyContent: "center",
         height: "100vh",
-        backgroundColor: darkMode ? "#000" : "#fff", // Dark mode background
+        backgroundColor: darkMode ? "#000" : "#fff",
         margin: "0",
         overflow: "hidden",
         padding: isMobile ? "0 15px" : "0 20px",
@@ -97,7 +89,7 @@ const PWAWelcomeLogin = () => {
         style={{
           fontSize: isMobile ? "22px" : "28px",
           fontWeight: "bold",
-          color: darkMode ? "#fff" : "#333", // Dark mode text
+          color: darkMode ? "#fff" : "#333",
           marginBottom: isMobile ? "20px" : "30px",
         }}
       >
@@ -112,15 +104,13 @@ const PWAWelcomeLogin = () => {
           flexDirection: "column",
         }}
       >
-        <div
-          style={{ marginBottom: isMobile ? "15px" : "20px", width: "100%" }}
-        >
+        <div style={{ marginBottom: isMobile ? "15px" : "20px", width: "100%" }}>
           <label
             htmlFor="email"
             style={{
               display: "block",
               fontSize: isMobile ? "14px" : "16px",
-              color: darkMode ? "#fff" : "#333", // Dark mode text
+              color: darkMode ? "#fff" : "#333",
               marginBottom: "8px",
             }}
           >
@@ -136,18 +126,16 @@ const PWAWelcomeLogin = () => {
               width: "100%",
               padding: isMobile ? "12px" : "14px",
               borderRadius: "6px",
-              border: darkMode ? "1px solid #777" : "1px solid #ccc", // Dark mode border
-              backgroundColor: darkMode ? "#222" : "#fff", // Dark mode background
-              color: darkMode ? "#fff" : "#000", // Dark mode text
+              border: darkMode ? "1px solid #777" : "1px solid #ccc",
+              backgroundColor: darkMode ? "#222" : "#fff",
+              color: darkMode ? "#fff" : "#000",
               fontSize: isMobile ? "16px" : "18px",
               boxSizing: "border-box",
             }}
           />
         </div>
 
-        <div
-          style={{ marginBottom: isMobile ? "20px" : "30px", width: "100%" }}
-        >
+        <div style={{ marginBottom: isMobile ? "20px" : "30px", width: "100%" }}>
           <div
             style={{
               display: "flex",
@@ -160,7 +148,7 @@ const PWAWelcomeLogin = () => {
               htmlFor="password"
               style={{
                 fontSize: isMobile ? "14px" : "16px",
-                color: darkMode ? "#fff" : "#333", // Dark mode text
+                color: darkMode ? "#fff" : "#333",
               }}
             >
               Password
@@ -177,23 +165,42 @@ const PWAWelcomeLogin = () => {
               Forgot password?
             </Link>
           </div>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{
-              width: "100%",
-              padding: isMobile ? "12px" : "14px",
-              borderRadius: "6px",
-              border: darkMode ? "1px solid #777" : "1px solid #ccc", // Dark mode border
-              backgroundColor: darkMode ? "#222" : "#fff", // Dark mode background
-              color: darkMode ? "#fff" : "#000", // Dark mode text
-              fontSize: isMobile ? "16px" : "18px",
-              boxSizing: "border-box",
-            }}
-          />
+
+          {/* Password Input with Eye Icon */}
+          <div style={{ position: "relative", width: "100%" }}>
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: isMobile ? "12px" : "14px",
+                paddingRight: "40px", // Space for the eye icon
+                borderRadius: "6px",
+                border: darkMode ? "1px solid #777" : "1px solid #ccc",
+                backgroundColor: darkMode ? "#222" : "#fff",
+                color: darkMode ? "#fff" : "#000",
+                fontSize: isMobile ? "16px" : "18px",
+                boxSizing: "border-box",
+              }}
+            />
+            {/* Eye Icon */}
+            <span
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: "absolute",
+                right: "12px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                cursor: "pointer",
+                color: darkMode ? "#aaa" : "#555",
+              }}
+            >
+              {showPassword ? <FaEye /> : <FaEyeSlash />}
+            </span>
+          </div>
         </div>
 
         <button
@@ -203,7 +210,7 @@ const PWAWelcomeLogin = () => {
             width: "100%",
             padding: isMobile ? "12px" : "14px",
             fontSize: isMobile ? "16px" : "18px",
-            backgroundColor: loading ? "#999" : "#0066cc", // Keep blue color
+            backgroundColor: loading ? "#999" : "#0066cc",
             color: "white",
             border: "none",
             borderRadius: "6px",

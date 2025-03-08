@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, Routes, Route, useNavigate } from 'react-router-dom';
+import { NavLink, Routes, Route, useNavigate, Outlet } from 'react-router-dom';
 import { FaHome, FaQrcode, FaBook, FaUserCircle, FaHistory, FaCog } from 'react-icons/fa';
 import Dashboard from './Dashboard';
 import Courses from './Courses';
@@ -9,12 +9,31 @@ import History from './History';
 import Settings from './Settings';
 import MobileDashboard from './MobileDashboard';
 import BottomNav from './BottomNav';
+import Appearance from "./Appearance";
+import AccountSettings from "./AccountSettings";
+import ChangePassword from "./ChangePassword";
+import ForgotPassword from "./ForgotPassword";
+import Location from "./Location";
+import CameraPermissions from "./CameraPermissions";
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [studentName, setStudentName] = useState('Student');
   const [isMobile, setIsMobile] = useState(false);
   const [hasRedirected, setHasRedirected] = useState(false);
+ // Manage dark mode state here so it can be passed down
+ const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
+  
+ useEffect(() => {
+   if (darkMode) {
+     document.documentElement.classList.add("dark-theme");
+     document.body.classList.add("dark-theme");
+   } else {
+     document.documentElement.classList.remove("dark-theme");
+     document.body.classList.remove("dark-theme");
+   }
+   localStorage.setItem("theme", darkMode ? "dark" : "light");
+ }, [darkMode]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -195,9 +214,28 @@ const StudentDashboard = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="courses" element={<Courses />} />
           <Route path="scan" element={<ScanQR />} />
-          <Route path="settings" element={<Settings />} />
+          
+          {/* Settings Route Wrapping All Settings Subpages */}
+        <Route path="settings/*" element={<SettingsLayout darkMode={darkMode} setDarkMode={setDarkMode} />}>
+          <Route index element={<Settings />} />
+            <Route path="appearance" element={<Appearance />} />
+            <Route path="account-settings" element={<AccountSettings />} />
+            <Route path="change-password" element={<ChangePassword />} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route path="location" element={<Location />} />
+            <Route path="camerapermissions" element={<CameraPermissions />} />
+          </Route>
         </Routes>
       </div>
+    </div>
+  );
+};
+
+// Settings Layout Wrapper (Keeps Sidebar Visible)
+const SettingsLayout = ({ darkMode, setDarkMode }) => {
+  return (
+    <div style={{ width: '100%' }}>
+      <Outlet context={{ darkMode, setDarkMode }} /> {/* This will render the active settings page (Appearance, Account, etc.) */}
     </div>
   );
 };
