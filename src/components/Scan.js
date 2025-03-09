@@ -28,18 +28,17 @@ const Scan = () => {
     });
   };
 
-  const startQrScanner = async () => {
-    if (!qrVideoRef.current) return;
-
-    console.log("[startQrScanner] Starting scanner...");
-    qrScannerRef.current = new QrScanner(
-      qrVideoRef.current,
-      (result) => handleScan(result.data || result),
-      { highlightScanRegion: true, highlightCodeOutline: true }
-    );
-
-    await qrScannerRef.current.start();
-    console.log("[startQrScanner] Scanner started.");
+  // Function to start the QR scanner
+  const startQrScanner = () => {
+    if (qrVideoRef.current && stream) {
+      qrScannerRef.current = new QrScanner(
+        qrVideoRef.current,
+        (result) => handleScan(result.data || result),
+        { highlightScanRegion: true, highlightCodeOutline: true }
+      );
+      qrScannerRef.current.start();
+      console.log("[startQrScanner] QR scanner started.");
+    }
   };
 
   useEffect(() => {
@@ -49,29 +48,50 @@ const Scan = () => {
         const cameraStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
         });
-
         console.log("[useEffect] Got camera stream:", cameraStream.active);
         setStream(cameraStream);
 
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
-          await qrVideoRef.current.play().catch((err) =>
-            console.error("[useEffect] Error playing QR video:", err)
+          // Wait for the video to be ready before playing and starting the scanner
+          qrVideoRef.current.addEventListener(
+            "canplay",
+            () => {
+              qrVideoRef.current
+                .play()
+                .then(() => {
+                  console.log("[useEffect] Video playing.");
+                  startQrScanner();
+                })
+                .catch((err) => {
+                  console.error("[useEffect] Error playing QR video:", err);
+                  toast.error("Error playing video stream.");
+                });
+            },
+            { once: true }
           );
-
-          startQrScanner();
         }
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
         toast.error("Unable to access camera. Check permissions.");
       }
     };
-
     startQrCamera();
 
+    // Restart scanner when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && qrVideoRef.current && stream) {
+        console.log("[handleVisibilityChange] Tab is visible, restarting scanner.");
+        startQrScanner();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Cleanup
     return () => {
       console.log("[useEffect cleanup] Cleaning up...");
       stopCamera();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -89,20 +109,6 @@ const Scan = () => {
       );
     }
   }, [isFaceMode, stream]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log("[Visibility API] Tab became active again. Restarting scanner...");
-        startQrScanner();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
 
   const stopCamera = () => {
     console.log("[stopCamera] Stopping camera...");
@@ -174,8 +180,9 @@ const Scan = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header Section from MobileDashboard */}
       <div className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300">
+        {/* Team Logo (Left) */}
         <img
           src="/images/team-logo.png"
           alt="Team Logo"
@@ -190,16 +197,32 @@ const Scan = () => {
               ? "Position your face in the frame and capture the photo."
               : "Point your camera at the QR code to mark attendance."}
           </p>
-          <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
-            <video
-              ref={qrVideoRef}
-              className="w-full h-full object-cover"
-              style={{ transform: "scaleX(-1)" }}
-              playsInline
-            />
-          </div>
+          {isFaceMode ? (
+            <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+              <video
+                ref={faceVideoRef}
+                className="w-full h-full object-cover"
+                style={{ transform: "scaleX(-1)" }}
+                playsInline
+              />
+            </div>
+          ) : (
+            <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+              <video
+                ref={qrVideoRef}
+                className="w-full h-full object-cover"
+                style={{ transform: "scaleX(-1)" }}
+                playsInline
+              />
+            </div>
+          )}
         </div>
       </main>
+      <footer className="w-full max-w-4xl mx-auto mt-6 text-center">
+        <p className="text-xs text-gray-500">
+          Ensure your camera is enabled and has sufficient lighting.
+        </p>
+      </footer>
     </div>
   );
 };
