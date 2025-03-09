@@ -1,271 +1,146 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
 const Courses = () => {
-  const [courses, setCourses] = useState([]);
-  const [expandedCourseId, setExpandedCourseId] = useState(null);
-  const [attendanceRecords, setAttendanceRecords] = useState({});
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-// Fetch attendance data from API
-useEffect(() => {
-  const fetchAttendanceData = async () => {
-    try {
-      let token = localStorage.getItem("accessToken"); 
-      let response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+  useEffect(() => {
+    const fetchAttendanceData = async () => {
+      try {
+        let token = localStorage.getItem("accessToken");
+        if (!token) throw new Error("No access token found.");
 
-      if (response.status === 401) {
-        
-        const refreshToken = localStorage.getItem("refreshToken");
-        if (!refreshToken) throw new Error("No refresh token available.");
-
-        const refreshResponse = await fetch(`${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh: refreshToken }),
-        });
-
-        if (!refreshResponse.ok) throw new Error("Failed to refresh token.");
-
-        const refreshData = await refreshResponse.json();
-        token = refreshData.access; 
-        localStorage.setItem("accessToken", token); 
-
-        
-        response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
-          method: "GET",
+        const instance = axios.create({
+          baseURL: process.env.REACT_APP_BASE_URL,
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
 
-        if (!response.ok) throw new Error("Failed to fetch attendance data after token refresh.");
-      }
+        const response = await instance.get("/api/v1/attendance/");
+        const attendanceData = response.data;
 
-      const attendanceData = await response.json();
+        const sortedRecords = attendanceData
+          .map((entry) => ({
+            courseName: entry.session_id.course_id.name,
+            date: new Date(entry.created_at).toLocaleDateString(),
+            time: new Date(entry.created_at).toLocaleTimeString(),
+            status:
+              entry.is_present === true
+                ? "Success"
+                : entry.face_recognition_status === "PENDING"
+                ? "Processing"
+                : "Failed",
+            createdAt: new Date(entry.created_at),
+          }))
+          .sort((a, b) => b.createdAt - a.createdAt);
 
-      
-      const uniqueCourses = {};
-      attendanceData.forEach((entry) => {
-        const courseId = entry.session_id.course_id.id;
-        const courseName = entry.session_id.course_id.name;
-        if (!uniqueCourses[courseId]) {
-          uniqueCourses[courseId] = { id: courseId, name: courseName };
-        }
-      });
-
-      setCourses(Object.values(uniqueCourses)); 
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching attendance data:", err);
-      setError("Unable to load courses.");
-      setLoading(false);
-    }
-  };
-
-  fetchAttendanceData();
-}, []);
-
- 
-  const handleToggleExpand = async (courseId) => {
-    if (expandedCourseId === courseId) {
-      setExpandedCourseId(null);
-    } else {
-      if (!attendanceRecords[courseId]) {
-        const token = localStorage.getItem('accessToken');
-        try {
-          const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/v1/attendance/`, {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error("Failed to fetch attendance records.");
+        setAttendanceRecords(sortedRecords);
+        setLoading(false);
+      } catch (err) {
+        if (err.response?.status === 401) {
+          const refreshToken = localStorage.getItem("refreshToken");
+          if (!refreshToken) {
+            setError("Authentication failed. Please log in again.");
+            setLoading(false);
+            return;
           }
 
-          const attendanceData = await response.json();
-
-          
-          const filteredAttendance = attendanceData
-            .filter(entry => entry.session_id.course_id.id === courseId)
-            .map(entry => ({
-              date: new Date(entry.created_at).toLocaleDateString(), 
-              status: entry.is_present ? "Present" : "Absent",
-            }));
-
-          setAttendanceRecords((prev) => ({
-            ...prev,
-            [courseId]: filteredAttendance,
-          }));
-        } catch (err) {
-          console.error("Error fetching attendance records:", err);
+          try {
+            const refreshResponse = await axios.post(
+              `${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`,
+              { refresh: refreshToken }
+            );
+            const newToken = refreshResponse.data.access;
+            localStorage.setItem("accessToken", newToken);
+            window.location.reload();
+          } catch (refreshError) {
+            console.error("Error refreshing token:", refreshError);
+            setError("Unable to refresh token. Please log in again.");
+            setLoading(false);
+          }
+        } else {
+          console.error("Error fetching attendance data:", err);
+          setError("Unable to load courses.");
+          setLoading(false);
         }
       }
-      setExpandedCourseId(courseId);
-    }
-  };
+    };
+
+    fetchAttendanceData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-gray-600">Loading courses...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2 style={{ marginBottom: "20px" }}>History</h2>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header Section - Fixed to top of content area */}
+      <header className="bg-gray-50 shadow-sm p-4 w-full">
+        <h1 className="text-2xl font-bold text-gray-800">Courses</h1>
+      </header>
 
-      {loading ? (
-        <p>Loading courses...</p>
-      ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
-      ) : (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <thead
-            style={{
-              backgroundColor: "#f8f9fa",
-              textAlign: "left",
-              borderBottom: "2px solid #ddd",
-            }}
-          >
-            <tr>
-              <th style={{ padding: "10px", fontWeight: "600" }}>Course ID</th>
-              <th style={{ padding: "10px", fontWeight: "600" }}>Name</th>
-              <th style={{ padding: "10px", fontWeight: "600", textAlign: "center" }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {courses.length > 0 ? (
-              courses.map((course) => (
-                <React.Fragment key={course.id}>
-                  <tr
-                    style={{
-                      borderBottom: "1px solid #ddd",
-                      backgroundColor: "#ffffff",
-                    }}
-                  >
-                    <td style={{ padding: "10px" }}>{course.id}</td>
-                    <td style={{ padding: "10px" }}>{course.name}</td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>
-                      <button
-                        onClick={() => handleToggleExpand(course.id)}
-                        style={{
-                          backgroundColor: "#007bff",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          padding: "5px 10px",
-                          cursor: "pointer",
-                          transition: "background-color 0.3s ease",
-                        }}
-                      >
-                        {expandedCourseId === course.id ? "Close" : "View"}
-                      </button>
-                    </td>
-                  </tr>
-                  <ExpandableRow
-                    isExpanded={expandedCourseId === course.id}
-                    content={
-                      <div
-                        style={{
-                          marginTop: "15px",
-                          marginBottom: "15px",
-                          display: "flex",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {attendanceRecords[course.id] ? (
-                          <table
-                            style={{
-                              width: "90%",
-                              borderCollapse: "collapse",
-                              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                            }}
-                          >
-                            <thead>
-                              <tr
-                                style={{
-                                  backgroundColor: "#f8f9fa",
-                                  borderBottom: "2px solid #ddd",
-                                }}
-                              >
-                                <th style={{ textAlign: "left", padding: "8px", fontWeight: "600" }}>Date</th>
-                                <th style={{ textAlign: "left", padding: "8px", fontWeight: "600" }}>Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {attendanceRecords[course.id].map((record, index) => (
-                                <tr
-                                  key={index}
-                                  style={{
-                                    backgroundColor: index % 2 === 0 ? "#ffffff" : "#f9f9f9",
-                                    borderBottom: "1px solid #ddd",
-                                  }}
-                                >
-                                  <td style={{ padding: "8px" }}>{record.date}</td>
-                                  <td style={{ padding: "8px" }}>{record.status}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <p>Loading attendance records...</p>
-                        )}
-                      </div>
-                    }
-                  />
-                </React.Fragment>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="3" style={{ textAlign: "center", padding: "10px" }}>No courses found.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
+      {/* Main Content */}
+      <main className="p-6 mt-4">
+        {attendanceRecords.length === 0 ? (
+          <p className="text-center text-gray-600">No attendance records found.</p>
+        ) : (
+          <div className="max-w-4xl mx-auto space-y-2">
+            {attendanceRecords.map((record, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center p-2 bg-white rounded-lg shadow-md"
+              >
+                <div>
+                  <p className="font-bold text-gray-800">{record.courseName}</p>
+                  <p className="text-gray-500 text-sm">{`${record.date}, ${record.time}`}</p>
+                </div>
+                <span
+                  className="px-2 py-1 rounded-full font-medium"
+                  style={{
+                    ...(record.status === "Success"
+                      ? {
+                          backgroundColor: "#D4EDDA",
+                          color: "#155724",
+                          border: "2px solid #4A9A6E",
+                        }
+                      : record.status === "Failed"
+                      ? {
+                          backgroundColor: "#F8D7DA",
+                          color: "#721C24",
+                          border: "2px solid #A84444",
+                        }
+                      : {
+                          backgroundColor: "#FFF3CD",
+                          color: "#856404",
+                          border: "2px solid #A68A1A",
+                        }),
+                  }}
+                >
+                  {record.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
-  );
-};
-
-const ExpandableRow = ({ isExpanded, content }) => {
-  const contentRef = useRef(null);
-
-  useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.style.maxHeight = isExpanded
-        ? `${contentRef.current.scrollHeight}px`
-        : "0";
-    }
-  }, [isExpanded]);
-
-  return (
-    <tr style={{ backgroundColor: "#f1f1f1", borderBottom: isExpanded ? "1px solid #ddd" : "none" }}>
-      <td colSpan="3" style={{ border: "none", padding: "0" }}>
-        <div
-          ref={contentRef}
-          style={{
-            overflow: "hidden",
-            maxHeight: "0",
-            transition: "max-height 0.3s ease-out",
-            padding: "0 10px",
-            boxSizing: "border-box",
-          }}
-        >
-          {content}
-        </div>
-      </td>
-    </tr>
   );
 };
 

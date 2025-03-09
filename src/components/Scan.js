@@ -5,436 +5,294 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const Scan = () => {
-  const videoRef = useRef(null);
+  console.log("[Render] <Scan />");
+
+  const qrVideoRef = useRef(null);
+  const faceVideoRef = useRef(null);
   const qrScannerRef = useRef(null);
-  const [scannedData, setScannedData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [doneQr, setDoneQr] = useState(false);
-  const [showResult, setShowResult] = useState(false);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [messageDisplayed, setMessageDisplayed] = useState(false);
+  const [stream, setStream] = useState(null);
+  const [isFaceMode, setIsFaceMode] = useState(false);
+  const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isImageUploaded, setIsImageUploaded] = useState(false);
+
+  const isProcessingRef = useRef(false);
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
 
+  // Helper function to get the device's location
+  const getLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation is not supported by this browser."));
+      } else {
+        navigator.geolocation.getCurrentPosition(resolve, reject);
+      }
+    });
+  };
+
+  // Start the camera for QR scanning
   useEffect(() => {
-    // Start the camera in QR mode
-    startCamera("qr");
-    return () => stopCamera();
+    console.log("[useEffect] Starting QR camera...");
+    const startQrCamera = async () => {
+      try {
+        const cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+        });
+        console.log("[useEffect] Got camera stream:", cameraStream.active);
+        setStream(cameraStream);
+
+        if (qrVideoRef.current) {
+          qrVideoRef.current.srcObject = cameraStream;
+          await qrVideoRef.current.play().catch((err) =>
+            console.error("[useEffect] Error playing QR video:", err)
+          );
+          qrScannerRef.current = new QrScanner(
+            qrVideoRef.current,
+            (result) => handleScan(result.data || result),
+            { highlightScanRegion: true, highlightCodeOutline: true }
+          );
+          qrScannerRef.current.start();
+        }
+      } catch (error) {
+        console.error("[useEffect] Error accessing camera:", error);
+        toast.error("Unable to access camera. Check permissions.");
+      }
+    };
+    startQrCamera();
+
+    return () => {
+      console.log("[useEffect cleanup] Cleaning up...");
+      stopCamera();
+    };
   }, []);
 
-  /**
-   * Attempt to start the camera in either 'qr' or 'face' mode.
-   * If environment or user facingMode fails (e.g., no rear camera),
-   * fall back to a generic { video: true } constraint.
-   */
-  const startCamera = async (mode = "qr") => {
-    // Use environment camera for QR scanning, user camera for face capture.
-    const constraints =
-      mode === "qr"
-        ? { video: { facingMode: { ideal: "environment" } } }
-        : { video: { facingMode: "user" } };
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      handleStream(stream, mode);
-    } catch (error) {
-      console.warn(
-        "Failed environment/user mode, falling back to { video: true }",
-        error
-      );
-      // Fallback if environment/user is not available.
-      try {
-        const fallbackStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
-        handleStream(fallbackStream, mode);
-      } catch (fallbackErr) {
-        console.error("Camera fallback also failed", fallbackErr);
-        if (!messageDisplayed) {
-          toast.error("No camera available or permission denied.");
-          setMessageDisplayed(true);
-          resetMessageFlag();
-        }
+  // Assign stream to faceVideoRef when isFaceMode changes
+  useEffect(() => {
+    if (isFaceMode && faceVideoRef.current && stream) {
+      console.log("[useEffect faceMode] Stream active:", stream.active);
+      if (!stream.active) {
+        console.error("[useEffect faceMode] Stream is inactive. Reinitializing...");
+        toast.error("Camera stream lost. Please refresh the page.");
+        return;
       }
-    }
-  };
-
-  /**
-   * Once we have a valid stream, attach it to the videoRef, call play(),
-   * and if it's QR mode, initialize the QrScanner.
-   */
-  const handleStream = (stream, mode) => {
-    if (!videoRef.current) return;
-    videoRef.current.srcObject = stream;
-    videoRef.current.play();
-
-    if (mode === "qr") {
-      qrScannerRef.current = new QrScanner(
-        videoRef.current,
-        (result) => result && handleQrScan(result),
-        {
-          highlightScanRegion: true,
-          highlightCodeOutline: true,
-        }
+      faceVideoRef.current.srcObject = stream;
+      faceVideoRef.current.play().catch((err) =>
+        console.error("[useEffect faceMode] Error playing face video:", err)
       );
-      qrScannerRef.current.start();
     }
-  };
+  }, [isFaceMode, stream]);
 
   const stopCamera = () => {
+    console.log("[stopCamera] Stopping camera...");
     if (qrScannerRef.current) {
       qrScannerRef.current.stop();
+      qrScannerRef.current.destroy();
       qrScannerRef.current = null;
     }
-    if (videoRef.current?.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
     }
+    if (qrVideoRef.current) qrVideoRef.current.srcObject = null;
+    if (faceVideoRef.current) faceVideoRef.current.srcObject = null;
   };
 
-  const resetMessageFlag = () => {
-    setTimeout(() => {
-      setMessageDisplayed(false);
-    }, 5000);
-  };
-
-  const handleQrScan = async (result) => {
-    if (loading) return; // Prevent duplicate scans while processing
-    setLoading(true);
-    stopCamera(); // Turn off the current camera stream
+  const handleScan = async (result) => {
+    if (!result || isProcessingRef.current) return;
+    isProcessingRef.current = true;
 
     try {
         const accessToken = localStorage.getItem("accessToken");
         if (!accessToken) throw new Error("Authentication error. Please log in.");
 
-        let scannedData;
+      // Parse the QR code data
+      let scannedData = JSON.parse(result);
+      const { token, locationEnabled = false } = scannedData;
+
+      // Initialize location data
+      let locationData = {};
+      if (locationEnabled) {
         try {
-            scannedData = JSON.parse(result.data || result);
-        } catch (parseError) {
-            console.error("Error parsing QR data:", parseError);
-            toast.error("Invalid QR Code format.");
-            setLoading(false);
-            return;
+          const position = await getLocation();
+          locationData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          console.log("Student's location:", locationData);
+        } catch (error) {
+          console.error("Error getting location:", error);
+          toast.error("Unable to get location. Proceeding without it.");
         }
+      }
 
-        const { token, locationEnabled } = scannedData;
+      // Make the API request
+      const response = await axios.post(
+        `${BASE_URL}/api/v1/attendance/`,
+        { token, ...locationData },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
 
-        // API Request Function
-        const sendAttendanceRequest = async (latitude = null, longitude = null) => {
-            const payload = { token };
-            if (locationEnabled && latitude !== null && longitude !== null) {
-                payload.latitude = latitude;
-                payload.longitude = longitude;
-            }
-
-            const response = await axios.post(
-                `${BASE_URL}/api/v1/attendance/`,
-                payload,
-                {
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            console.log("Attendance API Response:", response.data);
-            toast.success("Attendance recorded successfully!");
-
-            // Check if face recognition is required
-            const faceRecognitionEnabled = response.data?.session_id?.face_recognition_enabled;
-            if (!faceRecognitionEnabled) {
-                setScannedData(response.data);
-                setDoneQr(true);
-                setTimeout(() => startCamera("face"), 300);
-            }
-        };
-
-        // ✅ Only request location if `locationEnabled` is true AND the user has not already granted location access.
-        if (locationEnabled) {
-            navigator.permissions.query({ name: "geolocation" }).then((permission) => {
-                if (permission.state === "granted") {
-                    console.log("Location already granted.");
-                    navigator.geolocation.getCurrentPosition(
-                        async (position) => {
-                            const { latitude, longitude } = position.coords;
-                            console.log("User Location:", latitude, longitude);
-                            await sendAttendanceRequest(latitude, longitude);
-                        },
-                        (error) => {
-                            console.error("Geolocation error:", error);
-                            toast.error("Location access denied. Enable GPS to proceed.");
-                            setLoading(false);
-                        }
-                    );
-                } else if (permission.state === "prompt") {
-                    console.log("Asking for location permission...");
-                    navigator.geolocation.getCurrentPosition(
-                        async (position) => {
-                            const { latitude, longitude } = position.coords;
-                            console.log("User Location:", latitude, longitude);
-                            await sendAttendanceRequest(latitude, longitude);
-                        },
-                        (error) => {
-                            console.error("Geolocation error:", error);
-                            toast.error("Location access denied. Enable GPS to proceed.");
-                            setLoading(false);
-                        }
-                    );
-                } else {
-                    console.warn("Location permission is denied.");
-                    toast.error("Location permission denied. Please enable location to proceed.");
-                    setLoading(false);
-                }
-            });
+      console.log("[handleScan] API response:", response.data);
+      if (response.data?.id >= 0) {
+        toast.success("Attendance marked successfully!");
+        if (response.data.session_id?.face_recognition_enabled) {
+          console.log("[handleScan] Face mode enabled. Upload URL:", response.data.face_image_upload_url);
+          setFaceImageUploadUrl(response.data.face_image_upload_url);
+          setIsFaceMode(true);
         } else {
-            // If location is NOT required, send attendance request without GPS
-            await sendAttendanceRequest();
+          stopCamera();
+          setTimeout(() => {
+            window.location.replace("/student/dashboard?refresh=" + Date.now());
+          }, 3000);
         }
+      }
     } catch (error) {
-        setTimeout(() => {
-            if (!messageDisplayed) {
-                toast.error(
-                    error.response?.data?.message || "Invalid QR Code. Please try again."
-                );
-                setMessageDisplayed(true);
-                resetMessageFlag();
-            }
-        }, 5000);
+      console.error("[handleScan] Error:", error);
+      toast.error("Invalid QR code. Please try again.");
     } finally {
-        setLoading(false);
+      setTimeout(() => (isProcessingRef.current = false), 3000);
     }
 };
 
 
 
-  const handlePhotoCapture = async () => {
-    try {
-      setLoading(true);
-      const video = videoRef.current;
-      if (!video) {https://chatgpt.com/c/673fd1a7-453c-8002-9897-f68683224fb9
-        toast.error("No video stream available.");
-        return;
-      }
+  const handleCapturePhoto = async () => {
+    if (!faceImageUploadUrl || !faceVideoRef.current) {
+      toast.error("Capture failed: Missing setup.");
+      return;
+    }
 
-      // Create a canvas to capture the image.
+    if (!faceVideoRef.current.srcObject || faceVideoRef.current.readyState === 0) {
+      toast.error("No active video stream. Please try again.");
+      return;
+    }
+
+    setIsCapturing(true);
+    const maxAttempts = 5;
+    let attempts = 0;
+
+    while (attempts < maxAttempts && faceVideoRef.current.readyState < 2) {
+      console.log("[handleCapturePhoto] Video not ready, waiting...");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      attempts++;
+    }
+
+    if (faceVideoRef.current.readyState < 2) {
+      toast.error("Video stream not ready.");
+      setIsCapturing(false);
+      return;
+    }
+
+    try {
+      const video = faceVideoRef.current;
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      canvas
-        .getContext("2d")
-        .drawImage(video, 0, 0, canvas.width, canvas.height);
+      const context = canvas.getContext("2d");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const blob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/jpeg")
+        canvas.toBlob(resolve, "image/jpeg", 0.9)
       );
-      if (!blob) {
-        toast.error("Failed to capture image.");
-        return;
-      }
+      console.log("[handleCapturePhoto] Blob created:", blob.size);
 
-      setCapturedImage(URL.createObjectURL(blob));
-
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) throw new Error("Authentication error. Please log in.");
-
-      let uploadUrl = scannedData.face_image_upload_url;
-
-      console.log(uploadUrl);
-
-      await fetch(uploadUrl, {
-        method: "PUT",
+      const response = await axios.put(faceImageUploadUrl, blob, {
         headers: { "Content-Type": "image/jpeg" },
-        body: blob,
       });
 
-      toast.success("Image uploaded successfully. Attendance confirmed!");
-      setShowResult(true);
+      if (response.status === 200) {
+        toast.success("Face image uploaded successfully!");
+        setIsImageUploaded(true);
+        stopCamera();
+        setTimeout(() => {
+          window.location.replace("/student/dashboard?refresh=" + Date.now());
+        }, 3000);
+      }
     } catch (error) {
-      toast.error("Face verification failed. Please try again.");
+      console.error("[handleCapturePhoto] Error:", error);
+      toast.error("Failed to capture or upload photo.");
     } finally {
-      setLoading(false);
+      setIsCapturing(false);
     }
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "20px" }}>
-      <h2>Scan QR Code</h2>
-      <div style={{ marginTop: "20px", maxWidth: "800px", margin: "auto" }}>
-        {doneQr ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "20px",
-            }}
-          >
-            <video ref={videoRef} playsInline style={styles.video} />
-            <button onClick={handlePhotoCapture} style={styles.captureButton}>
-              Capture Photo
-            </button>
-            {capturedImage && (
-              <img
-                src={capturedImage}
-                alt="Captured"
-                style={styles.imagePreview}
-              />
-            )}
-          </div>
-        ) : (
-          <video ref={videoRef} playsInline style={styles.video} />
-        )}
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header Section */}
+      <div className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300">
+        <img
+          src="/images/team-logo.png"
+          alt="Team Logo"
+          className="w-[60px] h-auto pl-2 rounded-md"
+        />
       </div>
-      {loading && <p>Processing...</p>}
-      {showResult && (
-        <div>
-          <h3>QR Code and Facial Recognition Successful</h3>
-          <button
-            onClick={() => navigate("/dashboard")}
-            style={styles.dashboardButton}
-          >
-            Go to Dashboard
-          </button>
+
+      {/* Main Content */}
+      <main className="p-6 flex-1 overflow-y-auto">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Scan QR Code</h1>
+        <div className="flex flex-col items-center">
+          <p className="mb-4 text-sm text-gray-600">
+            {isFaceMode
+              ? "Position your face in the frame and capture the photo."
+              : "Point your camera at the QR code to mark attendance."}
+          </p>
+          {isFaceMode ? (
+            <>
+              <div className="w-full max-w-md aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+                <video
+                  ref={faceVideoRef}
+                  className="w-full h-full object-cover"
+                  style={{ transform: "scaleX(-1)" }}
+                  playsInline
+                />
+              </div>
+              {!isImageUploaded && (
+                <button
+                  onClick={handleCapturePhoto}
+                  disabled={isCapturing}
+                  className={`mt-6 px-6 py-2 rounded-md text-white font-medium ${
+                    isCapturing ? "bg-gray-400" : "bg-gray-700 hover:bg-gray-800"
+                  }`}
+                >
+                  {isCapturing ? "Capturing..." : "Capture Photo"}
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="w-full max-w-md aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+              <video
+                ref={qrVideoRef}
+                className="w-full h-full object-cover"
+                style={{ transform: "scaleX(-1)" }}
+                playsInline
+              />
+            </div>
+          )}
         </div>
-      )}
+      </main>
+
+      {/* Bottom Navigation Bar */}
+      <div className="fixed bottom-0 left-0 w-full bg-gray-200 p-2 flex justify-around">
+        <a href="/student/dashboard" className="text-gray-700 text-center">
+          <span className="block">Dashboard</span>
+          <i className="fas fa-home"></i>
+        </a>
+        <a href="/student/scan" className="text-blue-600 text-center">
+          <span className="block">Scan</span>
+          <i className="fas fa-qrcode"></i>
+        </a>
+        <a href="/student/history" className="text-gray-700 text-center">
+          <span className="block">History</span>
+          <i className="fas fa-history"></i>
+        </a>
+        <a href="/student/settings" className="text-gray-700 text-center">
+          <span className="block">Settings</span>
+          <i className="fas fa-cog"></i>
+        </a>
+      </div>
     </div>
   );
 };
 
-const styles = {
-  video: {
-    width: "100%",
-    height: "600px",
-    border: "2px solid #ddd",
-    borderRadius: "10px",
-  },
-  captureButton: {
-    padding: "10px 20px",
-    fontSize: "16px",
-    backgroundColor: "#FFD700",
-    color: "#fff",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-    transition: "background 0.3s",
-    marginTop: "10px",
-  },
-  imagePreview: {
-    width: "100%",
-    maxWidth: "300px",
-    height: "auto",
-    marginTop: "20px",
-    border: "2px solid #ddd",
-    borderRadius: "10px",
-    objectFit: "contain",
-    display: "block",
-    margin: "20px auto",
-  },
-  dashboardButton: {
-    padding: "10px 20px",
-    fontSize: "16px",
-    backgroundColor: "#007bff",
-    color: "#fff",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-    transition: "background 0.3s",
-  },
-};
-
 export default Scan;
-
-// import React, { useState, useEffect } from 'react';
-// import { QrReader } from 'react-qr-reader';
-// import { toast } from 'react-toastify';
-
-// const Scan = () => {
-//   const [scannedData, setScannedData] = useState(null);
-//   const [isMobile, setIsMobile] = useState(false);
-//   const errorShownRef = React.useRef(false);
-
-//   useEffect(() => {
-
-//     const checkIfMobile = () => {
-//       setIsMobile(window.innerWidth <= 768);
-//     };
-//     checkIfMobile();
-//     window.addEventListener('resize', checkIfMobile);
-
-//     return () => {
-//       window.removeEventListener('resize', checkIfMobile);
-//     };
-//   }, []);
-
-//   const handleScan = (result) => {
-//     if (result?.text) {
-//       setScannedData(result.text);
-//       toast.success('QR Code scanned successfully!');
-//     }
-//   };
-
-//   const handleError = (err) => {
-//     console.error('QR Scanner Error:', err);
-//     if (!errorShownRef.current) {
-//       toast.error('Error accessing the camera. Please check permissions.');
-//       errorShownRef.current = true;
-//     }
-//   };
-
-//   return (
-//     <div
-//       style={{
-//         width: '100vw',
-//         height: '100vh',
-//         overflow: 'hidden',
-//         margin: '0',
-//         padding: '0',
-//         display: 'flex',
-//         flexDirection: 'column',
-//         alignItems: 'center',
-//         justifyContent: 'center',
-//       }}
-//     >
-//       {!isMobile && (
-//         <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>QR Scanner</h2>
-//       )}
-//       <div
-//         style={{
-//           width: isMobile ? '100%' : '800px',
-//           height: isMobile ? '100%' : '600px',
-//           border: '2px solid #ddd',
-//           borderRadius: '10px',
-//           overflow: 'hidden',
-//         }}
-//       >
-//         <QrReader
-//           constraints={{
-//             video: { facingMode: 'environment' },
-//           }}
-//           onResult={(result, error) => {
-//             if (result) handleScan(result);
-//             if (error) handleError(error);
-//           }}
-//           containerStyle={{
-//             width: '100%',
-//             height: '100%',
-//           }}
-//         />
-//       </div>
-//       {scannedData && (
-//         <p
-//           style={{
-//             marginTop: '20px',
-//             textAlign: 'center',
-//             fontSize: '18px',
-//             width: isMobile ? '90%' : 'auto', // Adjust width for mobile
-//           }}
-//         >
-//           <strong>Scanned Data:</strong> {scannedData}
-//         </p>
-//       )}
-//     </div>
-//   );
-// };
-
-// export default Scan;

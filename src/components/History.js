@@ -33,31 +33,9 @@ const History = () => {
           },
         });
 
-        let response = await instance.get("/api/v1/attendance/").catch(async (err) => {
-          if (err.response?.status === 401) {
-            const refreshToken = localStorage.getItem("refreshToken");
-            if (!refreshToken) throw new Error("No refresh token available.");
-
-            const refreshResponse = await axios.post(
-              `${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`,
-              { refresh: refreshToken }
-            );
-            token = refreshResponse.data.access;
-            localStorage.setItem("accessToken", token);
-
-            
-            const retryResponse = await instance.get("/api/v1/attendance/");
-
-            
-            window.location.reload();
-            return retryResponse; 
-          }
-          throw err;
-        });
-
+        const response = await instance.get("/api/v1/attendance/");
         const attendanceData = response.data;
 
-        
         const sortedRecords = attendanceData
           .map((entry) => ({
             courseName: entry.session_id.course_id.name,
@@ -69,16 +47,39 @@ const History = () => {
                 : entry.face_recognition_status === "PENDING"
                 ? "Processing"
                 : "Failed",
-            createdAt: new Date(entry.created_at), 
+            createdAt: new Date(entry.created_at),
           }))
-          .sort((a, b) => b.createdAt - a.createdAt); 
+          .sort((a, b) => b.createdAt - a.createdAt);
 
         setAttendanceRecords(sortedRecords);
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching attendance data:", err);
-        setError("Unable to load attendance history.");
-        setLoading(false);
+        if (err.response?.status === 401) {
+          const refreshToken = localStorage.getItem("refreshToken");
+          if (!refreshToken) {
+            setError("Authentication failed. Please log in again.");
+            setLoading(false);
+            return;
+          }
+
+          try {
+            const refreshResponse = await axios.post(
+              `${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`,
+              { refresh: refreshToken }
+            );
+            const newToken = refreshResponse.data.access;
+            localStorage.setItem("accessToken", newToken);
+            window.location.reload(); // Reload the page to fetch data with the new token
+          } catch (refreshError) {
+            console.error("Error refreshing token:", refreshError);
+            setError("Unable to refresh token. Please log in again.");
+            setLoading(false);
+          }
+        } else {
+          console.error("Error fetching attendance data:", err);
+          setError("Unable to load attendance history.");
+          setLoading(false);
+        }
       }
     };
 
@@ -107,7 +108,7 @@ const History = () => {
         } flex flex-col`}>
       
       {/* Header (without title) */}
-      <header
+      <div
         className="bg-yellow-400 h-[60px] flex items-center justify-between w-full p-2"
         style={{
           borderBottomColor: isDarkMode ? "#333" : "#ddd", // Dark mode border fix
@@ -116,9 +117,9 @@ const History = () => {
         <img
           src="/images/team-logo.png"
           alt="Team Logo"
-          className="w-[60px] h-auto rounded-md"
+          className="w-[60px] h-auto pl-2 rounded-md"
         />
-      </header>
+      </div>
 
       {/* Main Content */}
       <div className="p-6">
@@ -128,7 +129,7 @@ const History = () => {
         {attendanceRecords.length === 0 ? (
           <p className="text-center text-gray-600">No attendance records found.</p>
         ) : (
-          <div className="space-y-2"> {/* Reduced spacing between records */}
+          <div className="space-y-2">
             {attendanceRecords.map((record, index) => (
               <div
                 key={index}
@@ -149,19 +150,18 @@ const History = () => {
                       ? {
                           backgroundColor: "#D4EDDA",
                           color: "#155724",
-                          border: "2px solid #4A9A6E", 
-                          
+                          border: "2px solid #4A9A6E",
                         }
                       : record.status === "Failed"
                       ? {
                           backgroundColor: "#F8D7DA",
                           color: "#721C24",
-                          border: "2px solid #A84444", 
+                          border: "2px solid #A84444",
                         }
                       : {
                           backgroundColor: "#FFF3CD",
                           color: "#856404",
-                          border: "2px solid #A68A1A", 
+                          border: "2px solid #A68A1A",
                         }),
                   }}
                 >
@@ -173,10 +173,8 @@ const History = () => {
         )}
       </div>
 
-      {/* Navigation Bar */}
-      <div
-        className="fixed bottom-0 left-0 w-full bg-gray-200 p-2 flex justify-around"
-      >
+      {/* Bottom Navigation Bar */}
+      <div className="fixed bottom-0 left-0 w-full bg-gray-200 p-2 flex justify-around">
         <a href="#" className="text-gray-700 text-center">
           <span className="block">Dashboard</span>
           <i className="fas fa-home"></i>

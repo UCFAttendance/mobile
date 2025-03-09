@@ -6,20 +6,15 @@ const CourseWidget = ({ course, attendanceRecords, index, isDarkMode }) => {
   const calculateAverageGrade = (records) => {
     if (!records || records.length === 0) return "N/A";
 
-    
     const validRecords = records.filter((record) => record.status !== "Processing");
-
     if (validRecords.length === 0) return "N/A";
 
-    
     const totalScore = validRecords.reduce((sum, record) => {
       return sum + (record.status === "Success" ? 100 : 0);
     }, 0);
 
-   
     const average = totalScore / validRecords.length;
 
-    
     if (Number.isInteger(average)) {
       return `${average}%`;
     }
@@ -28,7 +23,7 @@ const CourseWidget = ({ course, attendanceRecords, index, isDarkMode }) => {
 
   const headerColors = ["#3dc1d3", "#ff6b6b", "#ffc904"];
   const backgroundColor = headerColors[index % 3];
-  const textColor = backgroundColor; 
+  const textColor = backgroundColor;
 
   const percentage = calculateAverageGrade(attendanceRecords);
 
@@ -72,11 +67,11 @@ const Dashboard = () => {
         localStorage.getItem("theme") === "dark"
       );
   useEffect(() => {
-    
     const token = localStorage.getItem("accessToken");
     if (!token) {
       console.warn("No auth token found. Redirecting to login.");
       window.location.href = "/";
+      return;
     }
     
     const fetchAttendanceData = async () => {
@@ -92,7 +87,7 @@ const Dashboard = () => {
           },
         });
 
-        let response = await instance.get("/api/v1/attendance/").catch(async (err) => {
+        const response = await instance.get("/api/v1/attendance/").catch(async (err) => {
           if (err.response?.status === 401) {
             const refreshToken = localStorage.getItem("refreshToken");
             if (!refreshToken) throw new Error("No refresh token available.");
@@ -104,11 +99,14 @@ const Dashboard = () => {
             token = refreshResponse.data.access;
             localStorage.setItem("accessToken", token);
 
-            return instance.get("/api/v1/attendance/");
+            // Refresh the page after successfully updating the token
+            window.location.reload();
+            return; // Exit the catch block to prevent further execution
           }
           throw err;
         });
 
+        // If we reach here, it means no 401 error occurred or the catch block returned
         const attendanceData = response.data;
         const uniqueCourses = {};
         const recordsByCourse = {};
