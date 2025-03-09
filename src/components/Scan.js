@@ -28,19 +28,6 @@ const Scan = () => {
     });
   };
 
-  // Function to start the QR scanner
-  const startQrScanner = () => {
-    if (qrVideoRef.current && stream) {
-      qrScannerRef.current = new QrScanner(
-        qrVideoRef.current,
-        (result) => handleScan(result.data || result),
-        { highlightScanRegion: true, highlightCodeOutline: true }
-      );
-      qrScannerRef.current.start();
-      console.log("[startQrScanner] QR scanner started.");
-    }
-  };
-
   useEffect(() => {
     console.log("[useEffect] Starting QR camera...");
     const startQrCamera = async () => {
@@ -53,23 +40,15 @@ const Scan = () => {
 
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
-          // Wait for the video to be ready before playing and starting the scanner
-          qrVideoRef.current.addEventListener(
-            "canplay",
-            () => {
-              qrVideoRef.current
-                .play()
-                .then(() => {
-                  console.log("[useEffect] Video playing.");
-                  startQrScanner();
-                })
-                .catch((err) => {
-                  console.error("[useEffect] Error playing QR video:", err);
-                  toast.error("Error playing video stream.");
-                });
-            },
-            { once: true }
+          await qrVideoRef.current.play().catch((err) =>
+            console.error("[useEffect] Error playing QR video:", err)
           );
+          qrScannerRef.current = new QrScanner(
+            qrVideoRef.current,
+            (result) => handleScan(result.data || result),
+            { highlightScanRegion: true, highlightCodeOutline: true }
+          );
+          qrScannerRef.current.start();
         }
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
@@ -78,19 +57,22 @@ const Scan = () => {
     };
     startQrCamera();
 
-    // Restart scanner when tab becomes visible
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && qrVideoRef.current && stream) {
-        console.log("[handleVisibilityChange] Tab is visible, restarting scanner.");
-        startQrScanner();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Cleanup
     return () => {
       console.log("[useEffect cleanup] Cleaning up...");
       stopCamera();
+    };
+  }, []);
+
+  // Listen for the tab becoming active and restart the QR scanner
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && qrScannerRef.current) {
+        qrScannerRef.current.start();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
@@ -181,16 +163,20 @@ const Scan = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Section from MobileDashboard */}
-      <div className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300">
+      <div
+        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
+      >
         {/* Team Logo (Left) */}
         <img
           src="/images/team-logo.png"
           alt="Team Logo"
           className="w-[60px] h-auto pl-2 rounded-md"
         />
-      </div>
 
+      </div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Scan QR Code</h1>
       <main className="w-full max-w-3xl mx-auto bg-gray-200 rounded-xl shadow-sm p-6 pb-12 mt-24">
+      
         <div className="flex flex-col items-center">
           <p className="mb-4 text-sm text-gray-600">
             {isFaceMode
@@ -198,14 +184,16 @@ const Scan = () => {
               : "Point your camera at the QR code to mark attendance."}
           </p>
           {isFaceMode ? (
-            <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
-              <video
-                ref={faceVideoRef}
-                className="w-full h-full object-cover"
-                style={{ transform: "scaleX(-1)" }}
-                playsInline
-              />
-            </div>
+            <>
+              <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+                <video
+                  ref={faceVideoRef}
+                  className="w-full h-full object-cover"
+                  style={{ transform: "scaleX(-1)" }}
+                  playsInline
+                />
+              </div>
+            </>
           ) : (
             <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
               <video
