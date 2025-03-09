@@ -243,13 +243,11 @@ const Scan = () => {
           ) : (
             <div className="relative w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
               <video
-                ref={qrVideoRef}
+                ref={qrVideoRef} autoPlay playsInline muted
                 // `playsInline` is important for iOS Safari
                 // `muted` can help with auto-play policies in some browsers
                 className="absolute top-0 left-0 w-full h-full object-cover"
                 style={{ transform: "scaleX(-1)" }}
-                playsInline
-                muted
               />
             </div>
           )}
