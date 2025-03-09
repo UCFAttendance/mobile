@@ -20,10 +20,6 @@ const ScanQR = () => {
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
 
-  const [isDarkMode, setIsDarkMode] = useState(
-    localStorage.getItem("theme") === "dark"
-  );
-
   // Helper function to get the device's location
   const getLocation = () => {
     return new Promise((resolve, reject) => {
@@ -37,9 +33,6 @@ const ScanQR = () => {
 
   // Start the camera for QR scanning
   useEffect(() => {
-    const theme = localStorage.getItem("theme");
-    setIsDarkMode(theme === "dark");
-
     console.log("[useEffect] Starting QR camera...");
     const startQrCamera = async () => {
       try {
@@ -51,14 +44,18 @@ const ScanQR = () => {
 
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
+          
           qrScannerRef.current = new QrScanner(
             qrVideoRef.current,
             (result) => handleScan(result.data || result),
             { highlightScanRegion: true, highlightCodeOutline: true }
           );
+
+          //The issue
           await qrVideoRef.current.play().catch((err) =>
             console.error("[useEffect] Error playing QR video:", err)
           );
+
           qrScannerRef.current.start();
         }
       } catch (error) {
@@ -109,63 +106,79 @@ const ScanQR = () => {
     if (!result || isProcessingRef.current) return;
     isProcessingRef.current = true;
 
+    console.log("[handleScan] Raw QR scan result:", result);
+
+    let scannedData;
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) throw new Error("Authentication error. Please log in.");
+        scannedData = JSON.parse(result);
+    } catch (error) {
+        console.error("[handleScan] Error parsing QR code data:", error);
+        toast.error("Invalid QR code format. Please try again.");
+        isProcessingRef.current = false;
+        return;
+    }
 
-      // Parse the QR code data
-      let scannedData = JSON.parse(result);
-      const { token, locationEnabled = false } = scannedData;
+    const { token, locationEnabled = false } = scannedData;
 
-      // Initialize location data as an empty object
-      let locationData = {};
-      if (locationEnabled) {
-        try {
-          const position = await getLocation();
-          locationData = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          console.log("Student's location:", locationData);
-        } catch (error) {
-          console.error("Error getting location:", error);
-          toast.error("Unable to get location. Proceeding without it.");
+    if (!token) {
+        console.error("[handleScan] No token found in QR data.");
+        toast.error("Invalid QR code. Please try again.");
+        isProcessingRef.current = false;
+        return;
+    }
+
+    try {
+        const accessToken = localStorage.getItem("accessToken");
+        if (!accessToken) throw new Error("Authentication error. Please log in.");
+
+        let locationData = {};
+        if (locationEnabled) {
+            try {
+                const position = await getLocation();
+                locationData = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                };
+                console.log("Student's location:", locationData);
+            } catch (error) {
+                console.error("Error getting location:", error);
+                toast.error("Unable to get location. Proceeding without it.");
+            }
         }
-      }
 
-      // Make the API request with token and optional location data
-      const response = await axios.post(
-        `${BASE_URL}/api/v1/attendance/`,
-        { token, ...locationData },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        console.log("[handleScan] Sending request with:", { token, ...locationData });
+        console.log("[DEBUG] API request payload:", JSON.stringify({ token, ...locationData }));
+        const response = await axios.post(
+          `${BASE_URL}/api/v1/attendance/`,
+          JSON.stringify({ token, ...locationData }),
+          {
+              headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${accessToken}`,
+              },
+          }
       );
 
-      console.log("[handleScan] API response:", response.data);
-      if (response.data?.id >= 0) {
-        toast.success("Attendance marked successfully!");
-        if (Object.keys(locationData).length > 0) {
-          console.log("API call to mark attendance with location was successful.");
-        } else {
-          console.log("API call to mark attendance without location was successful.");
+        console.log("[handleScan] API response:", response.data);
+        if (response.data?.id >= 0) {
+            toast.success("Attendance marked successfully!");
+            if (response.data.session_id?.face_recognition_enabled) {
+                setFaceImageUploadUrl(response.data.face_image_upload_url);
+                setIsFaceMode(true);
+            } else {
+                stopCamera();
+                setTimeout(() => {
+                    window.location.replace("/student/dashboard?refresh=" + Date.now());
+                }, 3000);
+            }
         }
-        if (response.data.session_id?.face_recognition_enabled) {
-          console.log("[handleScan] Face mode enabled. Upload URL:", response.data.face_image_upload_url);
-          setFaceImageUploadUrl(response.data.face_image_upload_url);
-          setIsFaceMode(true);
-        } else {
-          stopCamera(); // Stop the camera immediately
-          setTimeout(() => {
-            window.location.replace("/student/dashboard?refresh=" + Date.now());
-          }, 3000); // 3-second delay before navigating
-        }
-      }
     } catch (error) {
-      console.error("[handleScan] Error:", error);
-      toast.error("Invalid QR code. Please try again.");
+        console.error("[handleScan] API Error:", error.response?.data || error.message);
+        toast.error(error.response?.data?.detail || "Invalid QR code. Please try again.");
     } finally {
-      setTimeout(() => (isProcessingRef.current = false), 3000);
+        setTimeout(() => (isProcessingRef.current = false), 3000);
     }
-  };
+};
 
   const handleCapturePhoto = async () => {
     if (!faceImageUploadUrl || !faceVideoRef.current) {
@@ -232,16 +245,13 @@ const ScanQR = () => {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"}`}>
-      <header className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50">
-      <h1 className="text-2xl font-bold text-gray-800 pl-4">Scan QR Code</h1>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-gray-50 shadow-sm p-4 w-full">
+        <h1 className="text-2xl font-bold text-gray-800">Scan QR Code</h1>
       </header>
-      <main
-        className={`w-full max-w-3xl mx-auto rounded-xl shadow-sm p-6 pb-12 mt-24 ${
-          isDarkMode ? "bg-gray-500 text-white" : "bg-gray-200 text-black"
-        }`}>
+      <main className="w-full max-w-3xl mx-auto bg-gray-200 rounded-xl shadow-sm p-6 pb-12 mt-24">
         <div className="flex flex-col items-center">
-          <p className={`mb-4 text-sm ${isDarkMode ? "text-gray-200" : "text-gray-600"}`}>
+          <p className="mb-4 text-sm text-gray-600">
             {isFaceMode
               ? "Position your face in the frame and capture the photo."
               : "Point your camera at the QR code to mark attendance."}
@@ -281,7 +291,7 @@ const ScanQR = () => {
         </div>
       </main>
       <footer className="w-full max-w-4xl mx-auto mt-6 text-center">
-        <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+        <p className="text-xs text-gray-500">
           Ensure your camera is enabled and has sufficient lighting.
         </p>
       </footer>
