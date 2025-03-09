@@ -30,31 +30,57 @@ const Scan = () => {
 
   useEffect(() => {
     console.log("[useEffect] Starting QR camera...");
+
     const startQrCamera = async () => {
       try {
+        // Request camera stream
         const cameraStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
         });
         console.log("[useEffect] Got camera stream:", cameraStream.active);
         setStream(cameraStream);
 
+        // Assign the stream to our video ref
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
-          await qrVideoRef.current.play().catch((err) =>
-            console.error("[useEffect] Error playing QR video:", err)
-          );
-          qrScannerRef.current = new QrScanner(
-            qrVideoRef.current,
-            (result) => handleScan(result.data || result),
-            { highlightScanRegion: true, highlightCodeOutline: true }
-          );
-          qrScannerRef.current.start();
+
+          // Only start the QrScanner once the video has metadata and is ready
+          const onLoadedMetadata = async () => {
+            try {
+              await qrVideoRef.current.play();
+
+              // Create and start the QrScanner
+              qrScannerRef.current = new QrScanner(
+                qrVideoRef.current,
+                (result) => handleScan(result.data || result),
+                {
+                  highlightScanRegion: true,
+                  highlightCodeOutline: true,
+                }
+              );
+              qrScannerRef.current.start();
+
+              // Force the scanner’s overlay to update in case it didn’t draw immediately
+              requestAnimationFrame(() => {
+                if (qrScannerRef.current) {
+                  // This internal method triggers an immediate overlay update
+                  qrScannerRef.current._updateOverlay();
+                }
+              });
+            } catch (err) {
+              console.error("[useEffect] Error playing QR video:", err);
+            }
+          };
+
+          // Listen for metadata once, then remove the listener
+          qrVideoRef.current.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
         }
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
         toast.error("Unable to access camera. Check permissions.");
       }
     };
+
     startQrCamera();
 
     return () => {
@@ -63,7 +89,7 @@ const Scan = () => {
     };
   }, []);
 
-  // Listen for the tab becoming active and restart the QR scanner
+  // Optionally keep this to restart the scanner if the user switches away and back
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && qrScannerRef.current) {
@@ -162,43 +188,40 @@ const Scan = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Section from MobileDashboard */}
-      <div
-        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
-      >
-        {/* Team Logo (Left) */}
+      {/* Header Section */}
+      <div className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300">
         <img
           src="/images/team-logo.png"
           alt="Team Logo"
           className="w-[60px] h-auto pl-2 rounded-md"
         />
-
       </div>
+
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Scan QR Code</h1>
+
       <main className="w-full max-w-3xl mx-auto bg-gray-200 rounded-xl shadow-sm p-6 pb-12 mt-24">
-      
         <div className="flex flex-col items-center">
           <p className="mb-4 text-sm text-gray-600">
             {isFaceMode
               ? "Position your face in the frame and capture the photo."
               : "Point your camera at the QR code to mark attendance."}
           </p>
+
           {isFaceMode ? (
-            <>
-              <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
-                <video
-                  ref={faceVideoRef}
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)" }}
-                  playsInline
-                />
-              </div>
-            </>
+            <div className="relative w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+              <video
+                ref={faceVideoRef}
+                className="absolute top-0 left-0 w-full h-full object-cover"
+                style={{ transform: "scaleX(-1)" }}
+                playsInline
+              />
+            </div>
           ) : (
-            <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+            // IMPORTANT: Make sure the container is position: relative
+            <div className="relative w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
               <video
                 ref={qrVideoRef}
-                className="w-full h-full object-cover"
+                className="absolute top-0 left-0 w-full h-full object-cover"
                 style={{ transform: "scaleX(-1)" }}
                 playsInline
               />
@@ -206,6 +229,7 @@ const Scan = () => {
           )}
         </div>
       </main>
+
       <footer className="w-full max-w-4xl mx-auto mt-6 text-center">
         <p className="text-xs text-gray-500">
           Ensure your camera is enabled and has sufficient lighting.
