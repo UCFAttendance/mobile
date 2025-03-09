@@ -34,24 +34,32 @@ const Scan = () => {
   useEffect(() => {
     console.log("[useEffect] Starting QR camera...");
     const startQrCamera = async () => {
+      toast.info("Requesting camera access...");
       try {
         const cameraStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
         });
+        toast.success("Camera access granted.");
         console.log("[useEffect] Got camera stream:", cameraStream.active);
         setStream(cameraStream);
 
         if (qrVideoRef.current) {
+          toast.info("Setting up video stream...");
           qrVideoRef.current.srcObject = cameraStream;
-          await qrVideoRef.current.play().catch((err) =>
-            console.error("[useEffect] Error playing QR video:", err)
-          );
+          await qrVideoRef.current.play().catch((err) => {
+            console.error("[useEffect] Error playing QR video:", err);
+            toast.error("Error playing video stream.");
+            throw err; // Re-throw to trigger catch block
+          });
+          toast.info("Video stream started.");
+          toast.info("Initializing QR scanner...");
           qrScannerRef.current = new QrScanner(
             qrVideoRef.current,
             (result) => handleScan(result.data || result),
             { highlightScanRegion: true, highlightCodeOutline: true }
           );
           qrScannerRef.current.start();
+          toast.success("QR scanner started.");
         }
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
@@ -68,17 +76,23 @@ const Scan = () => {
   }, []);
 
   const startFaceCamera = async () => {
+    toast.info("Switching to front camera for face recognition...");
     stopCamera();
     try {
       const faceStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
       });
+      toast.success("Front camera activated.");
       setStream(faceStream);
       if (faceVideoRef.current) {
+        toast.info("Setting up face video stream...");
         faceVideoRef.current.srcObject = faceStream;
-        await faceVideoRef.current.play().catch((err) =>
-          console.error("[startFaceCamera] Error playing face video:", err)
-        );
+        await faceVideoRef.current.play().catch((err) => {
+          console.error("[startFaceCamera] Error playing face video:", err);
+          toast.error("Error playing face video stream.");
+          throw err;
+        });
+        toast.info("Face video stream started.");
       }
     } catch (error) {
       console.error("[startFaceCamera] Error accessing front camera:", error);
@@ -95,6 +109,7 @@ const Scan = () => {
 
   const stopCamera = () => {
     console.log("[stopCamera] Stopping camera...");
+    toast.info("Stopping camera...");
     if (qrScannerRef.current) {
       qrScannerRef.current.stop();
       qrScannerRef.current.destroy();
@@ -106,22 +121,31 @@ const Scan = () => {
     }
     if (qrVideoRef.current) qrVideoRef.current.srcObject = null;
     if (faceVideoRef.current) faceVideoRef.current.srcObject = null;
+    toast.info("Camera stopped.");
   };
 
   const handleScan = async (result) => {
     if (!result || isProcessingRef.current) return;
     isProcessingRef.current = true;
     setStatusMessage("Processing QR code...");
+    toast.info("QR code detected.");
 
     try {
       const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) throw new Error("Authentication error. Please log in.");
+      if (!accessToken) {
+        setStatusMessage("Authentication error. Please log in.");
+        toast.error("Authentication error. Please log in.");
+        throw new Error("Authentication error. Please log in.");
+      }
 
+      toast.info("Parsing QR code...");
       let scannedData = JSON.parse(result);
       const { token, locationEnabled = false } = scannedData;
+      toast.info("QR code parsed successfully.");
 
       let locationData = {};
       if (locationEnabled) {
+        toast.info("Requesting location...");
         try {
           const position = await getLocation();
           locationData = {
@@ -129,13 +153,15 @@ const Scan = () => {
             longitude: position.coords.longitude,
           };
           console.log("Student's location:", locationData);
+          toast.success("Location acquired.");
         } catch (error) {
           console.error("Error getting location:", error);
           setStatusMessage("Unable to get location. Proceeding without it.");
-          toast.error("Unable to get location. Proceeding without it.");
+          toast.warn("Unable to get location. Proceeding without it.");
         }
       }
 
+      toast.info("Sending attendance data...");
       const response = await axios.post(
         `${BASE_URL}/api/v1/attendance/`,
         { token, ...locationData },
@@ -150,8 +176,10 @@ const Scan = () => {
           console.log("[handleScan] Face mode enabled. Upload URL:", response.data.face_image_upload_url);
           setFaceImageUploadUrl(response.data.face_image_upload_url);
           setIsFaceMode(true);
+          toast.info("Switching to face recognition mode...");
         } else {
           stopCamera();
+          toast.info("Redirecting to dashboard in 3 seconds...");
           setTimeout(() => {
             window.location.replace("/student/dashboard?refresh=" + Date.now());
           }, 3000);
@@ -167,6 +195,7 @@ const Scan = () => {
   };
 
   const handleCapturePhoto = async () => {
+    toast.info("Preparing to capture photo...");
     if (!faceImageUploadUrl || !faceVideoRef.current) {
       setStatusMessage("Capture failed: Missing setup.");
       toast.error("Capture failed: Missing setup.");
@@ -181,6 +210,7 @@ const Scan = () => {
 
     setIsCapturing(true);
     setStatusMessage("Capturing photo...");
+    toast.info("Waiting for video stream to load...");
 
     const maxAttempts = 5;
     let attempts = 0;
@@ -199,6 +229,7 @@ const Scan = () => {
     }
 
     try {
+      toast.info("Capturing photo...");
       const video = faceVideoRef.current;
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
@@ -206,11 +237,13 @@ const Scan = () => {
       const context = canvas.getContext("2d");
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+      toast.info("Photo captured. Preparing upload...");
       const blob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", 0.9)
       );
       console.log("[handleCapturePhoto] Blob created:", blob.size);
 
+      toast.info("Uploading photo...");
       const response = await axios.put(faceImageUploadUrl, blob, {
         headers: { "Content-Type": "image/jpeg" },
       });
@@ -220,6 +253,7 @@ const Scan = () => {
         toast.success("Face image uploaded successfully!");
         setIsImageUploaded(true);
         stopCamera();
+        toast.info("Redirecting to dashboard in 3 seconds...");
         setTimeout(() => {
           window.location.replace("/student/dashboard?refresh=" + Date.now());
         }, 3000);
@@ -260,7 +294,7 @@ const Scan = () => {
                   <video
                     ref={faceVideoRef}
                     className="w-full h-full object-cover"
-                    style={{ transform: "scaleX(1)" }}
+                    style={{ transform: "scaleX(-1)" }}
                     playsInline
                   />
                 </div>
@@ -277,7 +311,7 @@ const Scan = () => {
                 )}
               </>
             ) : (
-              <div className="w-full h-[calc(100vh-250px)] rounded-md border border-gray-200 bg-white overflow-hidden relative">
+              <div className="w-full h-[calc(100vh-300px)] rounded-md border border-gray-200 bg-white overflow-hidden relative">
                 <video
                   ref={qrVideoRef}
                   className="w-full h-full object-cover"
