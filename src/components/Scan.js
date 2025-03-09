@@ -20,6 +20,10 @@ const Scan = () => {
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
 
+  const [isDarkMode, setIsDarkMode] = useState(
+    localStorage.getItem("theme") === "dark"
+  );
+
   // Helper function to get the device's location
   const getLocation = () => {
     return new Promise((resolve, reject) => {
@@ -33,6 +37,9 @@ const Scan = () => {
 
   // Start the camera for QR scanning
   useEffect(() => {
+    const theme = localStorage.getItem("theme");
+    setIsDarkMode(theme === "dark");
+
     console.log("[useEffect] Starting QR camera...");
     const startQrCamera = async () => {
       try {
@@ -218,9 +225,11 @@ const Scan = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className={`min-h-screen flex flex-col ${
+      isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
+    }`}>
       {/* Header Section */}
-      <div className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300">
+      <div className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2">
         <img
           src="/images/team-logo.png"
           alt="Team Logo"
@@ -230,9 +239,9 @@ const Scan = () => {
 
       {/* Main Content */}
       <main className="p-6 flex-1 overflow-y-auto">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Scan QR Code</h1>
+        <h1 className={`text-2xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-800"}`}>Scan QR Code</h1>
         <div className="flex flex-col items-center">
-          <p className="mb-4 text-sm text-gray-600">
+          <p className={`mb-4 text-sm ${isDarkMode ? "text-white" : "text-gray-800"}`}>
             {isFaceMode
               ? "Position your face in the frame and capture the photo."
               : "Point your camera at the QR code to mark attendance."}

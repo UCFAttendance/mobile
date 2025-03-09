@@ -20,6 +20,10 @@ const ScanQR = () => {
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
 
+  const [isDarkMode, setIsDarkMode] = useState(
+    localStorage.getItem("theme") === "dark"
+  );
+
   // Helper function to get the device's location
   const getLocation = () => {
     return new Promise((resolve, reject) => {
@@ -33,6 +37,9 @@ const ScanQR = () => {
 
   // Start the camera for QR scanning
   useEffect(() => {
+    const theme = localStorage.getItem("theme");
+    setIsDarkMode(theme === "dark");
+
     console.log("[useEffect] Starting QR camera...");
     const startQrCamera = async () => {
       try {
@@ -225,13 +232,16 @@ const ScanQR = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-gray-50 shadow-sm p-4 w-full">
-        <h1 className="text-2xl font-bold text-gray-800">Scan QR Code</h1>
+    <div className={`min-h-screen flex flex-col ${isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"}`}>
+      <header className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50">
+      <h1 className="text-2xl font-bold text-gray-800 pl-4">Scan QR Code</h1>
       </header>
-      <main className="w-full max-w-3xl mx-auto bg-gray-200 rounded-xl shadow-sm p-6 pb-12 mt-24">
+      <main
+        className={`w-full max-w-3xl mx-auto rounded-xl shadow-sm p-6 pb-12 mt-24 ${
+          isDarkMode ? "bg-gray-500 text-white" : "bg-gray-200 text-black"
+        }`}>
         <div className="flex flex-col items-center">
-          <p className="mb-4 text-sm text-gray-600">
+          <p className={`mb-4 text-sm ${isDarkMode ? "text-gray-200" : "text-gray-600"}`}>
             {isFaceMode
               ? "Position your face in the frame and capture the photo."
               : "Point your camera at the QR code to mark attendance."}
@@ -271,7 +281,7 @@ const ScanQR = () => {
         </div>
       </main>
       <footer className="w-full max-w-4xl mx-auto mt-6 text-center">
-        <p className="text-xs text-gray-500">
+        <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
           Ensure your camera is enabled and has sufficient lighting.
         </p>
       </footer>
