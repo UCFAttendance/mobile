@@ -44,12 +44,10 @@ const Scan = () => {
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
 
-          // Only start the QrScanner once the video has metadata and is ready
-          const onLoadedMetadata = async () => {
+          // We'll wait for the "playing" event, which means the video is really playing
+          const onPlaying = () => {
+            console.log("[onPlaying] Video is actually playing — starting QrScanner...");
             try {
-              await qrVideoRef.current.play();
-
-              // Create and start the QrScanner
               qrScannerRef.current = new QrScanner(
                 qrVideoRef.current,
                 (result) => handleScan(result.data || result),
@@ -60,20 +58,38 @@ const Scan = () => {
               );
               qrScannerRef.current.start();
 
-              // Force the scanner’s overlay to update in case it didn’t draw immediately
-              requestAnimationFrame(() => {
+              // Force the scanner’s overlay to be on top of the video
+              // (By default, QrScanner appends a canvas sibling to the video.)
+              if (qrScannerRef.current.$canvas) {
+                qrScannerRef.current.$canvas.style.position = "absolute";
+                qrScannerRef.current.$canvas.style.top = "0";
+                qrScannerRef.current.$canvas.style.left = "0";
+                qrScannerRef.current.$canvas.style.width = "100%";
+                qrScannerRef.current.$canvas.style.height = "100%";
+                qrScannerRef.current.$canvas.style.zIndex = "2";
+              }
+              // Ensure the video is behind the overlay
+              qrVideoRef.current.style.zIndex = "1";
+
+              // Let layout settle, then force an overlay update
+              setTimeout(() => {
                 if (qrScannerRef.current) {
-                  // This internal method triggers an immediate overlay update
+                  console.log("[onPlaying] Forcing overlay update...");
                   qrScannerRef.current._updateOverlay();
                 }
-              });
+              }, 200);
             } catch (err) {
-              console.error("[useEffect] Error playing QR video:", err);
+              console.error("[onPlaying] Error starting QrScanner:", err);
             }
           };
 
-          // Listen for metadata once, then remove the listener
-          qrVideoRef.current.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
+          // Listen for the "playing" event once
+          qrVideoRef.current.addEventListener("playing", onPlaying, { once: true });
+
+          // Try playing the video (some browsers block until user gesture if not muted)
+          await qrVideoRef.current.play().catch((err) => {
+            console.warn("[useEffect] Video play() blocked or errored:", err);
+          });
         }
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
@@ -93,7 +109,14 @@ const Scan = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && qrScannerRef.current) {
+        console.log("[visibilitychange] Tab became visible, restarting QrScanner...");
         qrScannerRef.current.start();
+        // Force overlay update in case it was hidden
+        setTimeout(() => {
+          if (qrScannerRef.current) {
+            qrScannerRef.current._updateOverlay();
+          }
+        }, 200);
       }
     };
 
@@ -104,6 +127,7 @@ const Scan = () => {
   }, []);
 
   useEffect(() => {
+    // If we switch to face mode, show the face video
     if (isFaceMode && faceVideoRef.current && stream) {
       console.log("[useEffect faceMode] Stream active:", stream.active);
       if (!stream.active) {
@@ -217,13 +241,15 @@ const Scan = () => {
               />
             </div>
           ) : (
-            // IMPORTANT: Make sure the container is position: relative
             <div className="relative w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
               <video
                 ref={qrVideoRef}
+                // `playsInline` is important for iOS Safari
+                // `muted` can help with auto-play policies in some browsers
                 className="absolute top-0 left-0 w-full h-full object-cover"
                 style={{ transform: "scaleX(-1)" }}
                 playsInline
+                muted
               />
             </div>
           )}
