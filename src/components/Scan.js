@@ -5,8 +5,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const Scan = () => {
-  console.log("[Render] <Scan />");
-
   const qrVideoRef = useRef(null);
   const faceVideoRef = useRef(null);
   const qrScannerRef = useRef(null);
@@ -21,6 +19,7 @@ const Scan = () => {
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
 
+  // Function to get geolocation
   const getLocation = () => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -31,8 +30,8 @@ const Scan = () => {
     });
   };
 
+  // Start QR camera and scanner
   useEffect(() => {
-    console.log("[useEffect] Starting QR camera...");
     const startQrCamera = async () => {
       toast.info("Requesting camera access...");
       try {
@@ -40,19 +39,17 @@ const Scan = () => {
           video: { facingMode: { ideal: "environment" } },
         });
         toast.success("Camera access granted.");
-        console.log("[useEffect] Got camera stream:", cameraStream.active);
         setStream(cameraStream);
 
         if (qrVideoRef.current) {
-          toast.info("Setting up video stream...");
           qrVideoRef.current.srcObject = cameraStream;
           await qrVideoRef.current.play().catch((err) => {
-            console.error("[useEffect] Error playing QR video:", err);
+            console.error("Error playing QR video:", err);
             toast.error("Error playing video stream.");
-            throw err; // Re-throw to trigger catch block
+            throw err;
           });
           toast.info("Video stream started.");
-          toast.info("Initializing QR scanner...");
+
           qrScannerRef.current = new QrScanner(
             qrVideoRef.current,
             (result) => handleScan(result.data || result),
@@ -62,22 +59,31 @@ const Scan = () => {
           toast.success("QR scanner started.");
         }
       } catch (error) {
-        console.error("[useEffect] Error accessing camera:", error);
+        console.error("Error accessing camera:", error);
         setStatusMessage("Unable to access camera. Check permissions.");
         toast.error("Unable to access camera. Check permissions.");
       }
     };
     startQrCamera();
 
+    // Cleanup on unmount
     return () => {
-      console.log("[useEffect cleanup] Cleaning up...");
-      stopCamera();
+      if (qrScannerRef.current) {
+        qrScannerRef.current.stop();
+        qrScannerRef.current.destroy();
+      }
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
     };
   }, []);
 
+  // Start face camera for recognition
   const startFaceCamera = async () => {
     toast.info("Switching to front camera for face recognition...");
-    stopCamera();
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
     try {
       const faceStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
@@ -85,17 +91,16 @@ const Scan = () => {
       toast.success("Front camera activated.");
       setStream(faceStream);
       if (faceVideoRef.current) {
-        toast.info("Setting up face video stream...");
         faceVideoRef.current.srcObject = faceStream;
         await faceVideoRef.current.play().catch((err) => {
-          console.error("[startFaceCamera] Error playing face video:", err);
+          console.error("Error playing face video:", err);
           toast.error("Error playing face video stream.");
           throw err;
         });
         toast.info("Face video stream started.");
       }
     } catch (error) {
-      console.error("[startFaceCamera] Error accessing front camera:", error);
+      console.error("Error accessing front camera:", error);
       setStatusMessage("Unable to access front camera. Check permissions.");
       toast.error("Unable to access front camera. Check permissions.");
     }
@@ -107,8 +112,8 @@ const Scan = () => {
     }
   }, [isFaceMode]);
 
+  // Stop camera and clean up
   const stopCamera = () => {
-    console.log("[stopCamera] Stopping camera...");
     toast.info("Stopping camera...");
     if (qrScannerRef.current) {
       qrScannerRef.current.stop();
@@ -124,6 +129,7 @@ const Scan = () => {
     toast.info("Camera stopped.");
   };
 
+  // Handle QR scan result
   const handleScan = async (result) => {
     if (!result || isProcessingRef.current) return;
     isProcessingRef.current = true;
@@ -194,6 +200,7 @@ const Scan = () => {
     }
   };
 
+  // Capture and upload face photo
   const handleCapturePhoto = async () => {
     toast.info("Preparing to capture photo...");
     if (!faceImageUploadUrl || !faceVideoRef.current) {
@@ -294,7 +301,7 @@ const Scan = () => {
                   <video
                     ref={faceVideoRef}
                     className="w-full h-full object-cover"
-                    style={{ transform: "scaleX(-1)" }}
+                    style={{ transform: "scaleX(1)" }}
                     playsInline
                   />
                 </div>
@@ -315,7 +322,7 @@ const Scan = () => {
                 <video
                   ref={qrVideoRef}
                   className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)" }}
+                  style={{ transform: "scaleX(1)" }}
                   playsInline
                 />
                 {/* Overlay for QR scanner highlights */}
