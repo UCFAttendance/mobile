@@ -44,13 +44,13 @@ const Scan = () => {
 
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
-          await qrVideoRef.current.play().catch((err) =>
-            console.error("[useEffect] Error playing QR video:", err)
-          );
           qrScannerRef.current = new QrScanner(
             qrVideoRef.current,
             (result) => handleScan(result.data || result),
             { highlightScanRegion: true, highlightCodeOutline: true }
+          );
+          await qrVideoRef.current.play().catch((err) =>
+            console.error("[useEffect] Error playing QR video:", err)
           );
           qrScannerRef.current.start();
         }
