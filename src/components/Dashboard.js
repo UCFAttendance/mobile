@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const CourseWidget = ({ course, attendanceRecords, index }) => {
+const CourseWidget = ({ course, attendanceRecords, index, isDarkMode }) => {
   
   const calculateAverageGrade = (records) => {
     if (!records || records.length === 0) return "N/A";
@@ -33,17 +33,20 @@ const CourseWidget = ({ course, attendanceRecords, index }) => {
   const percentage = calculateAverageGrade(attendanceRecords);
 
   return (
-    <div className="rounded-lg shadow-md overflow-hidden">
+    <div
+      className={`rounded-lg shadow-md overflow-hidden ${
+        isDarkMode ? "bg-[#333] text-white" : "bg-white"
+      }`}
+    >
       {/* Header */}
       <div
         style={{ backgroundColor }}
         className="h-[60px] flex items-center justify-between px-4 relative"
       >
-        {/* Percentage in top-left corner */}
         {percentage !== "N/A" && (
           <div
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full px-2 py-0.2"
-            style={{ color: textColor }}
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full px-2 py-0.5"
+            style={{ color: backgroundColor }}
           >
             <span className="text-sm font-medium">{percentage}</span>
           </div>
@@ -51,11 +54,8 @@ const CourseWidget = ({ course, attendanceRecords, index }) => {
       </div>
 
       {/* Content */}
-      <div className="bg-white h-[60px] flex items-center justify-between px-4">
-        <span
-          className="font-semibold text-lg"
-          style={{ color: textColor }}
-        >
+      <div className="h-[60px] flex items-center justify-between px-4">
+        <span className="font-semibold text-lg" style={{ color: backgroundColor }}>
           {course.name}
         </span>
       </div>
@@ -68,7 +68,9 @@ const Dashboard = () => {
   const [attendanceRecords, setAttendanceRecords] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const [isDarkMode, setIsDarkMode] = useState(
+        localStorage.getItem("theme") === "dark"
+      );
   useEffect(() => {
     
     const token = localStorage.getItem("accessToken");
@@ -76,7 +78,6 @@ const Dashboard = () => {
       console.warn("No auth token found. Redirecting to login.");
       window.location.href = "/";
     }
-
     
     const fetchAttendanceData = async () => {
       try {
@@ -164,10 +165,18 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className={`min-h-screen ${
+        isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
+      } flex flex-col`}
+    >
       {/* Header */}
-      <header className="bg-white shadow-sm p-4">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+      <header
+        className={`shadow-sm p-4 ${
+          isDarkMode ? "bg-[#1e1e1e] text-white" : "bg-white text-gray-800"
+        }`}
+      >
+        <h1 className="text-2xl font-bold">Dashboard</h1>
       </header>
 
       {/* Main Content */}
@@ -182,6 +191,7 @@ const Dashboard = () => {
                 course={course}
                 attendanceRecords={attendanceRecords[course.id] || []}
                 index={index}
+                isDarkMode={isDarkMode} // Ensure it applies to widgets
               />
             ))}
           </div>
@@ -189,6 +199,7 @@ const Dashboard = () => {
       </div>
     </div>
   );
+
 };
 
 export default Dashboard;

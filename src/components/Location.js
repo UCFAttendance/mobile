@@ -6,7 +6,8 @@ const Location = () => {
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [locationEnabled, setLocationEnabled] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState("prompt"); // Can be "granted", "denied", or "prompt"
+  const [permissionStatus, setPermissionStatus] = useState("prompt"); // "granted", "denied", or "prompt"
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem("theme") === "dark");
 
   useEffect(() => {
     const handleResize = () => {
@@ -29,15 +30,16 @@ const Location = () => {
         };
       });
     }
+
+    // Detect dark mode preference
+    setIsDarkMode(localStorage.getItem("theme") === "dark");
   }, []);
 
   const toggleLocationPermission = () => {
     if (locationEnabled) {
-      // User wants to turn OFF location
       localStorage.setItem("locationPermission", "false");
       setLocationEnabled(false);
     } else {
-      // User wants to turn ON location - Request permission again
       navigator.geolocation.getCurrentPosition(
         (position) => {
           localStorage.setItem("locationPermission", "true");
@@ -53,8 +55,14 @@ const Location = () => {
   };
 
   return (
-    <div className="app-container" style={{ minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      {/* Header Section - Keep Yellow Always */}
+    <div
+      className="app-container"
+      style={{
+        minHeight: "100vh",
+        backgroundColor: isDarkMode ? "#141414" : "#f5f5f5",
+      }}
+    >
+      {/* Header Section - Always Yellow */}
       <div
         style={{
           backgroundColor: "#FFD700",
@@ -63,8 +71,8 @@ const Location = () => {
           color: "#fff",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: "24px" }}>Location</h2>
-        <p style={{ margin: 0, fontSize: "14px" }}>Manage location access</p>
+        <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>Location</h2>
+        <p style={{ margin: 0, fontSize: "14px", fontWeight: "bold" }}>Manage location access</p>
       </div>
 
       {/* Location Permission Box */}
@@ -72,27 +80,37 @@ const Location = () => {
         <div
           className="settings-box"
           style={{
-            backgroundColor: "#fff",
+            backgroundColor: isDarkMode ? "#333 !important" : "#fff",
             borderRadius: "10px",
             padding: "20px",
-            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-            border: "1px solid #ddd",
+            boxShadow: isDarkMode
+              ? "0 4px 6px rgba(255, 255, 255, 0.1)"
+              : "0 4px 6px rgba(0, 0, 0, 0.1)",
+            border: isDarkMode ? "none" : "1px solid #ddd",
           }}
         >
           <h4
             style={{
               margin: "0 0 10px 0",
               fontSize: "14px",
-              color: "#888",
+              color: isDarkMode ? "#bbb" : "#888",
               paddingBottom: "10px",
-              borderBottom: "1px solid #eee",
+              borderBottom: isDarkMode ? "1px solid #444" : "1px solid #eee",
             }}
           >
             Location Services
           </h4>
 
           <div className="settings-option" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px 0" }}>
-            <span style={{ fontSize: "16px", fontWeight: "500", color: "#000" }}>Location Permission</span>
+            <span
+              style={{
+                fontSize: "16px",
+                fontWeight: "500",
+                color: isDarkMode ? "#ffffff" : "#000000",
+              }}
+            >
+              Location Permission
+            </span>
             <label className="switch">
               <input type="checkbox" checked={locationEnabled} onChange={toggleLocationPermission} />
               <span className="slider"></span>
@@ -104,7 +122,12 @@ const Location = () => {
             style={{
               marginTop: "10px",
               fontSize: "14px",
-              color: permissionStatus === "granted" ? "green" : permissionStatus === "denied" ? "red" : "gray",
+              color:
+                permissionStatus === "granted"
+                  ? "green"
+                  : permissionStatus === "denied"
+                  ? "red"
+                  : "gray",
             }}
           >
             {permissionStatus === "granted" && "✔ Location Access Granted"}
@@ -123,7 +146,8 @@ const Location = () => {
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          color: "#000",
+          color: "#fff",
+          fontWeight: "bold"
         }}
         onClick={() => navigate(-1)}
       >

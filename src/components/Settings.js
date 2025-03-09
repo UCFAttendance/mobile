@@ -36,7 +36,7 @@ const Settings = () => {
   return (
     <div
       style={{
-        backgroundColor: darkMode ? "#000" : "#f5f5f5",
+        backgroundColor: darkMode ? "#141414" : "#f5f5f5",  // og bg color under dark theme was #000
         minHeight: "100vh",
         overflowY: "auto",
         fontFamily: "Arial, sans-serif",
@@ -51,15 +51,15 @@ const Settings = () => {
           color: "#fff",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: "24px" }}>Settings</h2>
-        <p style={{ margin: 0, fontSize: "14px" }}>Account Information</p>
+        <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>Settings</h2>
+        <p style={{ margin: 0, fontSize: "14px", fontWeight: "bold" }}>Account Information</p>
       </div>
 
       {/* Merged Settings Section */}
       <div style={{ marginTop: "-66px", padding: "20px" }}>
         <div
           style={{
-            backgroundColor: darkMode ? "#1e1e1e" : "#fff",
+            backgroundColor: darkMode ? "#333" : "#fff",
             borderRadius: "10px",
             boxShadow: darkMode
               ? "0 4px 6px rgba(255, 255, 255, 0.1)"
@@ -131,7 +131,7 @@ const Settings = () => {
       <div style={{ marginTop: "20px", padding: "20px" }}>
         <div
           style={{
-            backgroundColor: darkMode ? "#1e1e1e" : "#fff",
+            backgroundColor: darkMode ? "#333" : "#fff", //other color option for card: #1e1e1e
             borderRadius: "10px",
             boxShadow: darkMode
               ? "0 4px 6px rgba(255, 255, 255, 0.1)"

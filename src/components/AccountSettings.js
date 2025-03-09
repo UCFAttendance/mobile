@@ -207,7 +207,7 @@ const AccountSettings = () => {
   return (
     <div
       style={{
-        backgroundColor: darkMode ? "#000" : "#f5f5f5",
+        backgroundColor: darkMode ? "#141414" : "#f5f5f5",
         minHeight: "100vh",
         overflowY: "auto",
         fontFamily: "Arial, sans-serif",
@@ -232,7 +232,8 @@ const AccountSettings = () => {
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
-            color: darkMode ? "#000" : "#fff", // Changes based on mode
+            color: "#fff", 
+            fontWeight: "bold"
           }}
           onClick={() => navigate(-1)}
         >
@@ -244,7 +245,8 @@ const AccountSettings = () => {
           style={{
             margin: 0,
             fontSize: "24px",
-            color: darkMode ? "#000" : "#fff",
+            color: darkMode ? "#fff" : "#fff",
+            fontWeight: "bold"
           }}
         >
           Account Settings
@@ -253,7 +255,8 @@ const AccountSettings = () => {
           style={{
             margin: 0,
             fontSize: "14px",
-            color: darkMode ? "#000" : "#fff",
+            color: darkMode ? "#fff" : "#fff",
+            fontWeight: "bold"
           }}
         >
           Manage your account information
@@ -273,7 +276,7 @@ const AccountSettings = () => {
         <form
           onSubmit={handleSubmit}
           style={{
-            backgroundColor: darkMode ? "#1e1e1e" : "#fff",
+            backgroundColor: darkMode ? "#333" : "#fff",
             borderRadius: "10px",
             boxShadow: darkMode
               ? "0 4px 6px rgba(255, 255, 255, 0.1)"

@@ -42,8 +42,8 @@ const Appearance = ({ darkMode, setDarkMode }) => {
           width: "100%",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: "24px" }}>Appearance</h2>
-        <p style={{ margin: 0, fontSize: "14px" }}>Customize the theme</p>
+        <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>Appearance</h2>
+        <p style={{ margin: 0, fontSize: "14px", fontWeight: "bold" }}>Customize the theme</p>
       </div>
 
       {/* Theme Selection Box */}
@@ -113,7 +113,8 @@ const Appearance = ({ darkMode, setDarkMode }) => {
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          color: darkMode ? "#000" : "#fff", // Changes based on mode
+          color: "#fff",
+          fontWeight: "bold"
         }}
         onClick={() => navigate(-1)}
       >

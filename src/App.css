@@ -17,8 +17,8 @@
 
 /* Ensure all text adapts in dark mode */
 .dark-theme h2, 
-.dark-theme p, 
-.dark-theme span, 
+/* .dark-theme p,  */
+ 
 .dark-theme label, 
 .dark-theme a, 
 .dark-theme .settings-button {
@@ -167,9 +167,10 @@ html.dark-theme .content-section,
 html.dark-theme .box,
 html.dark-theme .profile-container,
 html.dark-theme .settings-box {
-  background-color: #222 !important;
+  background-color: #333 !important;
   color: #ffffff !important;
 }
+
 
 /* Ensure buttons also adapt */
 html.dark-theme .button,
@@ -199,4 +200,10 @@ html.dark-theme td {
 html.dark-theme nav {
   background-color: #222 !important;
   border-top: 2px solid #333 !important;
+}
+
+
+/* Ensure course text matches its respective color in dark mode */
+.dark-theme .course-text {
+  color: inherit !important;
 }

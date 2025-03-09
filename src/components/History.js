@@ -6,6 +6,9 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isDarkMode, setIsDarkMode] = useState(
+    localStorage.getItem("theme") === "dark"
+  );
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -14,6 +17,9 @@ const History = () => {
   }, []);
 
   useEffect(() => {
+    const theme = localStorage.getItem("theme");
+    setIsDarkMode(theme === "dark");
+
     const fetchAttendanceData = async () => {
       try {
         let token = localStorage.getItem("accessToken");
@@ -96,10 +102,16 @@ const History = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className={`min-h-screen ${
+            isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
+        } flex flex-col`}>
+      
       {/* Header (without title) */}
       <header
         className="bg-yellow-400 h-[60px] flex items-center justify-between w-full p-2"
+        style={{
+          borderBottomColor: isDarkMode ? "#333" : "#ddd", // Dark mode border fix
+        }}
       >
         <img
           src="/images/team-logo.png"
@@ -110,7 +122,8 @@ const History = () => {
 
       {/* Main Content */}
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">History</h1>
+        <h1 className="text-2xl font-bold mb-6">History</h1>
+
 
         {attendanceRecords.length === 0 ? (
           <p className="text-center text-gray-600">No attendance records found.</p>
@@ -119,11 +132,15 @@ const History = () => {
             {attendanceRecords.map((record, index) => (
               <div
                 key={index}
-                className="flex justify-between items-center p-2 bg-white rounded-lg shadow-md" 
+                className={`flex justify-between items-center p-2 bg-white rounded-lg shadow-md ${
+                  isDarkMode ? "bg-[#333]" : "bg-white"
+                }`}
               >
                 <div>
-                  <p className="font-bold text-gray-800">{record.courseName}</p>
-                  <p className="text-gray-500 text-sm">{`${record.date}, ${record.time}`}</p>
+                  <p className={`${isDarkMode ? "font-bold text-gray-200" : "font-bold text-gray-800"}`}>
+                    {`${record.courseName}`}</p>
+                  <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    {`${record.date}, ${record.time}`}</p>
                 </div>
                 <span
                   className="px-2 py-1 rounded-full font-medium"
