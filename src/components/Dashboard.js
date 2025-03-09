@@ -2,24 +2,18 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 const CourseWidget = ({ course, attendanceRecords, index }) => {
-  
   const calculateAverageGrade = (records) => {
     if (!records || records.length === 0) return "N/A";
 
-    
     const validRecords = records.filter((record) => record.status !== "Processing");
-
     if (validRecords.length === 0) return "N/A";
 
-    
     const totalScore = validRecords.reduce((sum, record) => {
       return sum + (record.status === "Success" ? 100 : 0);
     }, 0);
 
-   
     const average = totalScore / validRecords.length;
 
-    
     if (Number.isInteger(average)) {
       return `${average}%`;
     }
@@ -28,7 +22,7 @@ const CourseWidget = ({ course, attendanceRecords, index }) => {
 
   const headerColors = ["#3dc1d3", "#ff6b6b", "#ffc904"];
   const backgroundColor = headerColors[index % 3];
-  const textColor = backgroundColor; 
+  const textColor = backgroundColor;
 
   const percentage = calculateAverageGrade(attendanceRecords);
 
@@ -52,10 +46,7 @@ const CourseWidget = ({ course, attendanceRecords, index }) => {
 
       {/* Content */}
       <div className="bg-white h-[60px] flex items-center justify-between px-4">
-        <span
-          className="font-semibold text-lg"
-          style={{ color: textColor }}
-        >
+        <span className="font-semibold text-lg" style={{ color: textColor }}>
           {course.name}
         </span>
       </div>
@@ -70,14 +61,13 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    
     const token = localStorage.getItem("accessToken");
     if (!token) {
       console.warn("No auth token found. Redirecting to login.");
       window.location.href = "/";
+      return;
     }
 
-    
     const fetchAttendanceData = async () => {
       try {
         let token = localStorage.getItem("accessToken");
@@ -91,7 +81,7 @@ const Dashboard = () => {
           },
         });
 
-        let response = await instance.get("/api/v1/attendance/").catch(async (err) => {
+        const response = await instance.get("/api/v1/attendance/").catch(async (err) => {
           if (err.response?.status === 401) {
             const refreshToken = localStorage.getItem("refreshToken");
             if (!refreshToken) throw new Error("No refresh token available.");
@@ -103,11 +93,14 @@ const Dashboard = () => {
             token = refreshResponse.data.access;
             localStorage.setItem("accessToken", token);
 
-            return instance.get("/api/v1/attendance/");
+            // Refresh the page after successfully updating the token
+            window.location.reload();
+            return; // Exit the catch block to prevent further execution
           }
           throw err;
         });
 
+        // If we reach here, it means no 401 error occurred or the catch block returned
         const attendanceData = response.data;
         const uniqueCourses = {};
         const recordsByCourse = {};
@@ -166,7 +159,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm p-4">
+      <header className="bg-gray-50 shadow-sm p-4">
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
       </header>
 

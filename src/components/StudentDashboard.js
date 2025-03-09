@@ -10,6 +10,33 @@ import Settings from "./Settings";
 import MobileDashboard from "./MobileDashboard";
 import BottomNav from "./BottomNav";
 
+// Error Boundary to handle token refresh and page reload
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    if (error.message === "TOKEN_REFRESHED") {
+      window.location.reload();
+      return { hasError: false }; // Prevent rendering fallback UI after reload
+    }
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.log("Error caught:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <h1>Something went wrong.</h1>;
+    }
+    return this.props.children;
+  }
+}
+
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [studentName, setStudentName] = useState("Student");
@@ -31,11 +58,7 @@ const StudentDashboard = () => {
   useEffect(() => {
     if (!hasRedirected) {
       if (window.location.pathname === "/student" || window.location.pathname === "/student/") {
-        if (isMobile) {
-          navigate("/student/dashboard");
-        } else {
-          navigate("/student/dashboard");
-        }
+        navigate("/student/dashboard");
       }
       setHasRedirected(true);
     }
@@ -65,13 +88,15 @@ const StudentDashboard = () => {
     return (
       <div className="flex flex-col h-screen">
         <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16">
-          <Routes>
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="scan" element={<ScanQR />} />
-            <Route path="history" element={<History />} />
-            <Route path="settings" element={<Settings />} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="scan" element={<ScanQR />} />
+              <Route path="history" element={<History />} />
+              <Route path="settings" element={<Settings />} />
+            </Routes>
+          </ErrorBoundary>
         </div>
         <BottomNav />
       </div>
@@ -167,12 +192,14 @@ const StudentDashboard = () => {
 
       {/* Desktop Main Content Area */}
       <div className="flex-1 overflow-y-auto">
-        <Routes>
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="courses" element={<Courses />} />
-          <Route path="scan" element={<ScanQR />} />
-          <Route path="settings" element={<Settings />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="courses" element={<Courses />} />
+            <Route path="scan" element={<ScanQR />} />
+            <Route path="settings" element={<Settings />} />
+          </Routes>
+        </ErrorBoundary>
       </div>
     </div>
   );
