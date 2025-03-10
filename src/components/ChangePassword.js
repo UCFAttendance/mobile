@@ -101,7 +101,7 @@ const ChangePassword = () => {
             display: "flex",
             alignItems: "center",
             color: "#fff",
-            fontWeight: "bold"
+            fontWeight: "bold",
           }}
           onClick={() => navigate(-1)}
         >
@@ -114,7 +114,7 @@ const ChangePassword = () => {
             margin: 0,
             fontSize: "24px",
             color: "#fff",
-            fontWeight: "bold"
+            fontWeight: "bold",
           }}
         >
           Change Password
@@ -124,7 +124,7 @@ const ChangePassword = () => {
             margin: 0,
             fontSize: "14px",
             color: "#fff",
-            fontWeight: "bold"
+            fontWeight: "bold",
           }}
         >
           Enter your new password
@@ -194,7 +194,7 @@ const ChangePassword = () => {
                   fontWeight: "500",
                 }}
               >
-                Old Password
+                Current Password
               </label>
             </div>
             <input
