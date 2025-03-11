@@ -52,7 +52,7 @@ const CustomOverlay = () => {
 };
 
 const Scan = () => {
-  console.log("[Render] <Scan />"); // Added for debugging render count
+  console.log("[Render] <Scan />");
 
   const qrVideoRef = useRef(null);
   const faceVideoRef = useRef(null);
@@ -68,13 +68,13 @@ const Scan = () => {
   const [isDarkMode, setIsDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
-  const [forceRender, setForceRender] = useState(false); // New state to force double render
+  const [forceRender, setForceRender] = useState(false);
 
   // Force a second render after the initial render
   useEffect(() => {
     console.log("[useEffect] Forcing second render...");
-    setForceRender((prev) => !prev); // Toggle to trigger a second render
-  }, []); // Empty dependency array to run only on mount
+    setForceRender((prev) => !prev);
+  }, []);
 
   // Helper function to get the device's location
   const getLocation = () => {
@@ -87,17 +87,49 @@ const Scan = () => {
     });
   };
 
-  // Start the camera for QR scanning
+  // Check camera permission state
+  const checkCameraPermission = async () => {
+    if (!navigator.permissions || !navigator.permissions.query) {
+      console.log("[checkCameraPermission] Permissions API not supported");
+      return "prompt"; // Fallback to prompt if API unavailable
+    }
+
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: "camera" });
+      console.log("[checkCameraPermission] Camera permission state:", permissionStatus.state);
+      return permissionStatus.state; // "granted", "denied", or "prompt"
+    } catch (error) {
+      console.error("[checkCameraPermission] Error checking permission:", error);
+      return "prompt"; // Default to prompt on error
+    }
+  };
+
+  // Start the camera for QR scanning with permission handling
   useEffect(() => {
     const theme = localStorage.getItem("theme");
     setIsDarkMode(theme === "dark");
 
     const startQrCamera = async () => {
+      // Check if we've stored a previous "granted" permission
+      const cachedPermission = localStorage.getItem("cameraPermission");
+      const permissionState = await checkCameraPermission();
+
+      if (cachedPermission === "granted" && permissionState === "granted") {
+        console.log("[startQrCamera] Permission already granted, skipping prompt");
+      } else if (permissionState === "denied") {
+        toast.error("Camera access denied. Please enable it in your browser settings.");
+        return;
+      }
+
       try {
         const cameraStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
         });
         setStream(cameraStream);
+
+        // Store permission as granted once user allows it
+        localStorage.setItem("cameraPermission", "granted");
+        console.log("[startQrCamera] Camera access granted and cached");
 
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
@@ -114,14 +146,16 @@ const Scan = () => {
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
         toast.error("Unable to access camera. Check permissions.");
+        localStorage.setItem("cameraPermission", "denied"); // Cache denial
       }
     };
+
     startQrCamera();
 
     return () => {
       stopCamera();
     };
-  }, [forceRender]); // Add forceRender to dependency array to re-run on toggle
+  }, [forceRender]);
 
   // Assign stream to faceVideoRef when isFaceMode changes
   useEffect(() => {
@@ -180,12 +214,10 @@ const Scan = () => {
 
       if (response.data?.id >= 0) {
         toast.success("Attendance marked successfully!");
-        // If face recognition is enabled, switch to face mode
         if (response.data.session_id?.face_recognition_enabled) {
           setFaceImageUploadUrl(response.data.face_image_upload_url);
           setIsFaceMode(true);
         } else {
-          // Otherwise, stop the camera and redirect
           stopCamera();
           setTimeout(() => {
             window.location.replace("/student/dashboard?refresh=" + Date.now());
@@ -194,14 +226,10 @@ const Scan = () => {
       }
     } catch (error) {
       console.error("[handleScan] Error:", error);
-
-      // Add 401 logic:
       if (error.response?.status === 401) {
-        // Attempt to refresh token
         const refreshToken = localStorage.getItem("refreshToken");
         if (!refreshToken) {
           toast.error("Authentication failed. Please log in again.");
-          // Optionally navigate or redirect to login:
           setTimeout(() => {
             window.location.replace("/");
           }, 1500);
@@ -213,8 +241,6 @@ const Scan = () => {
             );
             const newToken = refreshResponse.data.access;
             localStorage.setItem("accessToken", newToken);
-
-            // After refreshing, we can re-run the same request or just reload:
             window.location.reload();
           } catch (refreshError) {
             console.error("Error refreshing token:", refreshError);
@@ -316,18 +342,15 @@ const Scan = () => {
                 style={{ transform: "scaleX(-1)" }}
                 playsInline
               />
-              {/* Camera button only shows if the user hasn't uploaded yet */}
               {!isImageUploaded && (
                 <div className="absolute bottom-8 w-full flex justify-center">
                   <button
                     onClick={handleCapturePhoto}
                     disabled={isCapturing}
                     className="relative"
-                    style={{ width: "72px", height: "72px" }} // Outer container
+                    style={{ width: "72px", height: "72px" }}
                   >
-                    {/* White outer circle */}
                     <div className="absolute inset-0 rounded-full bg-white" />
-                    {/* Yellow inner circle */}
                     <div className="absolute w-16 h-16 rounded-full bg-yellow-400 bottom-12 left-2" />
                   </button>
                 </div>
