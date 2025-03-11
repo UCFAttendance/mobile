@@ -347,7 +347,7 @@ const Scan = () => {
       <div
         className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
         style={{
-          borderBottomColor: isDarkMode ? "#333" : "#ddd", // Dark mode border fix
+          borderBottomColor: isDarkMode ? "#333" : "#ddd", overflowY: "hidden !important",// Dark mode border fix
         }}
       >
         <img
@@ -365,16 +365,16 @@ const Scan = () => {
               <video
                 ref={faceVideoRef}
                 className="h-[calc(100vh-4rem)] w-auto object-contain" // Adjusted height for iPhone full display
-                style={{ transform: "scaleX(-1)" }}
+                style={{ transform: "scaleX(-1) translateY(-90px)", overflowY: "hidden !important" }}
                 playsInline
               />
               {!isImageUploaded && (
-                <div className="absolute bottom-8 w-full flex justify-center">
+                <div className="absolute bottom-16 w-full flex justify-center">
                   <button
                     onClick={handleCapturePhoto}
                     disabled={isCapturing}
                     className="relative"
-                    style={{ width: "72px", height: "72px" }}
+                    style={{ width: "72px", height: "72px" , overflowY: "hidden !important"}}
                   >
                     <div className="absolute inset-0 rounded-full bg-white" />
                     <div className="absolute w-16 h-16 rounded-full bg-yellow-400 bottom-12 left-2" />
@@ -387,7 +387,7 @@ const Scan = () => {
               <video
                 ref={qrVideoRef}
                 className="h-[calc(100vh-4rem)] w-auto object-contain" // Adjusted height for iPhone full display
-                style={{ transform: "scaleX(1) translateY(-90px)" }}
+                style={{ transform: "scaleX(1) translateY(-90px)", overflowY: "hidden !important" }}
                 playsInline
               />
               <CustomOverlay />
