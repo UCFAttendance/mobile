@@ -195,9 +195,9 @@ const Scan = () => {
             setIsFaceMode(true);
           } else {
             stopCamera();
-            setTimeout(() => {
-              window.location.replace("/student/dashboard?refresh=" + Date.now());
-            }, 3000);
+            // setTimeout(() => {
+            //   window.location.replace("/student/dashboard?refresh=" + Date.now());
+            // }, 3000);
           }
         }
       } catch (error) {
