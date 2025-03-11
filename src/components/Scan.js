@@ -61,7 +61,7 @@ const Scan = () => {
   const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isImageUploaded, setIsImageUploaded] = useState(false);
-  const [errors, setErrors] = useState([]); // New state for error messages
+  const [errors, setErrors] = useState([]);
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
@@ -70,18 +70,15 @@ const Scan = () => {
   );
   const [forceRender, setForceRender] = useState(false);
 
-  // Helper to add error messages
   const addError = (message) => {
     setErrors((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
-  // Force a second render after the initial render
   useEffect(() => {
     console.log("[useEffect] Forcing second render...");
     setForceRender((prev) => !prev);
   }, []);
 
-  // Helper function to get the device's location
   const getLocation = () => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -92,24 +89,22 @@ const Scan = () => {
     });
   };
 
-  // Check camera permission state
   const checkCameraPermission = async () => {
     if (!navigator.permissions || !navigator.permissions.query) {
       console.log("[checkCameraPermission] Permissions API not supported");
-      return "prompt"; // Fallback to prompt if API unavailable
+      return "prompt";
     }
 
     try {
       const permissionStatus = await navigator.permissions.query({ name: "camera" });
       console.log("[checkCameraPermission] Camera permission state:", permissionStatus.state);
-      return permissionStatus.state; // "granted", "denied", or "prompt"
+      return permissionStatus.state;
     } catch (error) {
       console.error("[checkCameraPermission] Error checking permission:", error);
-      return "prompt"; // Default to prompt on error
+      return "prompt";
     }
   };
 
-  // Start the camera for QR scanning with permission handling
   useEffect(() => {
     const theme = localStorage.getItem("theme");
     setIsDarkMode(theme === "dark");
@@ -160,7 +155,6 @@ const Scan = () => {
     };
   }, [forceRender]);
 
-  // Switch to front-facing camera when isFaceMode is enabled
   useEffect(() => {
     if (isFaceMode) {
       const switchToFrontCamera = async () => {
@@ -215,14 +209,13 @@ const Scan = () => {
       let token;
       let locationEnabled = false;
 
-      // Try parsing as JSON, fall back to plain string if it fails
       try {
         const scannedData = JSON.parse(result);
         token = scannedData.token;
         locationEnabled = scannedData.locationEnabled || false;
       } catch (parseError) {
         console.log("[handleScan] QR code is not JSON, treating as plain token:", result);
-        token = result; // Use raw result as token if not JSON
+        token = result;
       }
 
       if (!token) throw new Error("No token found in QR code.");
@@ -244,12 +237,17 @@ const Scan = () => {
       console.log("[handleScan] Sending payload:", { token, ...locationData });
       const response = await axios.post(
         `${BASE_URL}/api/v1/attendance/`,
-        { token, ...locationData },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        JSON.stringify({ token, ...locationData }), // Stringify payload like ScanQR
+        {
+          headers: {
+            "Content-Type": "application/json", // Explicitly set Content-Type
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
 
       if (response.data?.id >= 0) {
-        setErrors([]); // Clear errors on success
+        setErrors([]);
         console.log("Attendance marked successfully:", response.data);
         if (response.data.session_id?.face_recognition_enabled) {
           setFaceImageUploadUrl(response.data.face_image_upload_url);
@@ -339,7 +337,7 @@ const Scan = () => {
       });
 
       if (response.status === 200) {
-        setErrors([]); // Clear errors on success
+        setErrors([]);
         console.log("Face image uploaded successfully!");
         setIsImageUploaded(true);
         stopCamera();
@@ -362,7 +360,6 @@ const Scan = () => {
       }`}
       style={{ overflowY: "hidden !important" }}
     >
-      {/* Header from MobileDashboard */}
       <div
         className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
         style={{
@@ -376,7 +373,6 @@ const Scan = () => {
         />
       </div>
 
-      {/* Main Content: Video fills remaining vertical space */}
       <main className="flex-1 relative overflow-hidden">
         <div className="relative w-full h-full flex items-center justify-center">
           {isFaceMode ? (
@@ -415,7 +411,6 @@ const Scan = () => {
         </div>
       </main>
 
-      {/* Error Messages Display */}
       {errors.length > 0 && (
         <div className="p-4 text-red-500 text-sm">
           {errors.map((error, index) => (
