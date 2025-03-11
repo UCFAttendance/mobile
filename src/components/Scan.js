@@ -15,9 +15,7 @@ const Scan = () => {
   const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isImageUploaded, setIsImageUploaded] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(
-    localStorage.getItem("theme") === "dark"
-  );
+
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
@@ -310,20 +308,9 @@ const Scan = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Dashboard Header from MobileDashboard */}
-      <div
-        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
-        style={{
-          borderBottomColor: isDarkMode ? "#333" : "#ddd",
-        }}
-      >
-        <img
-          src="/images/team-logo.png"
-          alt="Team Logo"
-          className="w-[60px] h-auto pl-2 rounded-md"
-        />
-      </div>
-
+      <header className="bg-gray-50 shadow-sm p-4 w-full">
+        <h1 className="text-2xl font-bold text-gray-800">Scan QR Code</h1>
+      </header>
       <main className="w-full mx-auto bg-gray-200 rounded-xl shadow-sm p-0 mt-0">
         <div className="flex flex-col items-center">
           <p className="mb-4 text-sm text-gray-600">
