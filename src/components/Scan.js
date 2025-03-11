@@ -17,6 +17,7 @@ const Scan = () => {
   const [isImageUploaded, setIsImageUploaded] = useState(false);
   const [forceRender, setForceRender] = useState(false);
   const [apiPayload, setApiPayload] = useState(""); // New state to display API payload
+  const [apiError, setApiError] = useState("");
 
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
@@ -164,7 +165,7 @@ const Scan = () => {
           if (locationEnabled) {
             toast.error("Location access is required to mark attendance.");
             isProcessingRef.current = false;
-            return; // Exit early if location is required but unavailable
+            return;
           }
         }
       }
@@ -172,7 +173,8 @@ const Scan = () => {
       const payload = JSON.stringify({ token, ...locationData });
       console.log("[handleScan] Sending request with:", { token, ...locationData });
       console.log("[DEBUG] API request payload:", payload);
-      setApiPayload(payload); // Set the payload to display on the page
+      setApiPayload(payload);
+      setApiError(""); // Clear previous error
 
       const axiosInstance = axios.create({
         baseURL: BASE_URL,
@@ -199,6 +201,8 @@ const Scan = () => {
           }
         }
       } catch (error) {
+        console.error("[handleScan] API Error:", error.response?.data || error.message);
+        setApiError(JSON.stringify(error.response?.data || error.message)); // Store error for display
         if (error.response?.status === 401) {
           const refreshToken = localStorage.getItem("refreshToken");
           if (!refreshToken) {
@@ -375,6 +379,14 @@ const Scan = () => {
                     <strong>API Payload:</strong>
                   </p>
                   <pre className="text-xs text-gray-600">{apiPayload}</pre>
+                </div>
+              )}
+              {apiError && (
+                <div className="mt-4 p-4 bg-red-100 rounded-md">
+                  <p className="text-sm text-red-700">
+                    <strong>API Error:</strong>
+                  </p>
+                  <pre className="text-xs text-red-600">{apiError}</pre>
                 </div>
               )}
             </>
