@@ -31,7 +31,7 @@ const ScanQR = () => {
   // Start the camera for QR scanning
   useEffect(() => {
     console.log("[useEffect] Starting QR camera...");
-
+  
     const startQrCamera = async () => {
       try {
         if (qrScannerRef.current) {
@@ -40,37 +40,47 @@ const ScanQR = () => {
           qrScannerRef.current.destroy();
           qrScannerRef.current = null;
         }
-
+  
         const cameraStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
         });
         console.log("[useEffect] Got camera stream:", cameraStream.active);
         setStream(cameraStream);
-
+        setTimeout(() => {
+          setStream(null);
+          setTimeout(() => setStream(cameraStream), 100);
+        }, 100);
+  
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
-
-          // Ensure the video is playing before initializing the scanner
           await qrVideoRef.current.play();
           console.log("[useEffect] Video stream started.");
-
+  
           qrScannerRef.current = new QrScanner(
             qrVideoRef.current,
             (result) => handleScan(result.data || result),
             { highlightScanRegion: true, highlightCodeOutline: true }
           );
-
+  
           console.log("[DEBUG] QR Scanner initialized.");
           qrScannerRef.current.start();
+  
+          // Ensure the scanner is actually running after 2 seconds
+          setTimeout(() => {
+            if (!qrScannerRef.current.hasCamera()) {
+              console.warn("[WARNING] Scanner inactive, restarting...");
+              qrScannerRef.current.start();
+            }
+          }, 2000);
         }
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
         toast.error("Unable to access camera. Check permissions.");
       }
     };
-
+  
     startQrCamera();
-
+  
     return () => {
       console.log("[useEffect cleanup] Cleaning up...");
       stopCamera();
@@ -94,9 +104,9 @@ const ScanQR = () => {
   const handleScan = async (result) => {
     if (!result || isProcessingRef.current) return;
     isProcessingRef.current = true;
-
+  
     console.log("[handleScan] Raw QR scan result:", result);
-
+  
     let scannedData;
     try {
       scannedData = JSON.parse(result);
@@ -106,69 +116,25 @@ const ScanQR = () => {
       isProcessingRef.current = false;
       return;
     }
-
-    const { token, locationEnabled = false } = scannedData;
-
+  
+    const { token } = scannedData;
+  
     if (!token) {
       console.error("[handleScan] No token found in QR data.");
       toast.error("Invalid QR code. Please try again.");
       isProcessingRef.current = false;
       return;
     }
-
-    try {
-      let accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) throw new Error("Authentication error. Please log in.");
-
-      let locationData = {};
-      if (locationEnabled) {
-        try {
-          const position = await getLocation();
-          locationData = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          console.log("Student's location:", locationData);
-        } catch (error) {
-          console.error("Error getting location:", error);
-          toast.error("Unable to get location. Proceeding without it.");
-        }
-      }
-
-      console.log("[handleScan] Sending request with:", { token, ...locationData });
-
-      const axiosInstance = axios.create({
-        baseURL: BASE_URL,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      try {
-        const response = await axiosInstance.post(
-          "/api/v1/attendance/",
-          JSON.stringify({ token, ...locationData })
-        );
-
-        console.log("[handleScan] API response:", response.data);
-        if (response.data?.id >= 0) {
-          toast.success("Attendance marked successfully!");
-          stopCamera();
-          setTimeout(() => {
-            window.location.replace("/student/dashboard?refresh=" + Date.now());
-          }, 3000);
-        }
-      } catch (error) {
-        console.error("[handleScan] API Error:", error.response?.data || error.message);
-        toast.error(error.response?.data?.detail || error.message || "Invalid QR code. Please try again.");
-      }
-    } catch (error) {
-      console.error("[handleScan] API Error:", error.response?.data || error.message);
-      toast.error(error.response?.data?.detail || error.message || "Invalid QR code. Please try again.");
-    } finally {
-      setTimeout(() => (isProcessingRef.current = false), 3000);
-    }
+  
+    console.log("[handleScan] Successfully scanned QR code.");
+    qrScannerRef.current.stop(); // Stop scanner after a successful scan
+  
+    setTimeout(() => {
+      console.log("[handleScan] Restarting scanner after successful scan...");
+      qrScannerRef.current.start();
+    }, 3000); // Restart scanner after 3 seconds
+  
+    isProcessingRef.current = false;
   };
 
   return (
