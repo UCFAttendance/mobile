@@ -67,10 +67,13 @@ const ScanQR = () => {
   
           // Ensure the scanner is actually running after 2 seconds
           setTimeout(() => {
-            if (!qrScannerRef.current.hasCamera()) {
-              console.warn("[WARNING] Scanner inactive, restarting...");
-              qrScannerRef.current.start();
-            }
+            QrScanner.hasCamera().then((hasCamera) => {
+              if (!hasCamera) {
+                console.warn("[WARNING] No camera found, restarting scanner...");
+                qrScannerRef.current?.start();
+              }
+            });
+            
           }, 2000);
         }
       } catch (error) {
