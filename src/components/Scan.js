@@ -15,19 +15,12 @@ const Scan = () => {
   const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isImageUploaded, setIsImageUploaded] = useState(false);
-  const [forceRender, setForceRender] = useState(false);
-  const [apiPayload, setApiPayload] = useState(""); // New state to display API payload
-  const [apiError, setApiError] = useState("");
-
+  const [isDarkMode, setIsDarkMode] = useState(
+    localStorage.getItem("theme") === "dark"
+  );
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
-
-  // Force a second render after the initial render
-  useEffect(() => {
-    console.log("[useEffect] Forcing second render...");
-    setForceRender((prev) => !prev);
-  }, []);
 
   // Helper function to get the device's location
   const getLocation = () => {
@@ -38,18 +31,6 @@ const Scan = () => {
         navigator.geolocation.getCurrentPosition(resolve, reject);
       }
     });
-  };
-
-  // Test location function
-  const testLocation = async () => {
-    try {
-      const position = await getLocation();
-      console.log("Test Location:", position.coords);
-      toast.success(`Location: Lat ${position.coords.latitude}, Lon ${position.coords.longitude}`);
-    } catch (error) {
-      console.error("Test Location Error:", error.message);
-      toast.error(`Location Test Failed: ${error.message}`);
-    }
   };
 
   // Start the camera for QR scanning
@@ -89,9 +70,9 @@ const Scan = () => {
       console.log("[useEffect cleanup] Cleaning up...");
       stopCamera();
     };
-  }, [forceRender]);
+  }, []);
 
-  // Assign stream to faceVideoRef when isFaceMode changes
+  // When face mode is activated, assign the stream to the face video element
   useEffect(() => {
     if (isFaceMode && faceVideoRef.current && stream) {
       console.log("[useEffect faceMode] Stream active:", stream.active);
@@ -162,19 +143,14 @@ const Scan = () => {
           console.log("Student's location:", locationData);
         } catch (error) {
           console.error("Error getting location:", error);
-          if (locationEnabled) {
-            toast.error("Location access is required to mark attendance.");
-            isProcessingRef.current = false;
-            return;
-          }
+          toast.error("Location access is required to mark attendance.");
+          isProcessingRef.current = false;
+          return;
         }
       }
 
       const payload = JSON.stringify({ token, ...locationData });
       console.log("[handleScan] Sending request with:", { token, ...locationData });
-      console.log("[DEBUG] API request payload:", payload);
-      setApiPayload(payload);
-      setApiError(""); // Clear previous error
 
       const axiosInstance = axios.create({
         baseURL: BASE_URL,
@@ -195,15 +171,18 @@ const Scan = () => {
             setIsFaceMode(true);
           } else {
             stopCamera();
-            // setTimeout(() => {
-            //   window.location.replace("/student/dashboard?refresh=" + Date.now());
-            // }, 3000);
           }
         }
       } catch (error) {
         console.error("[handleScan] API Error:", error.response?.data || error.message);
-        setApiError(JSON.stringify(error.response?.data || error.message)); // Store error for display
-        if (error.response?.status === 401) {
+        if (
+          error.response?.status === 404 &&
+          error.response?.data?.detail === "Location not within range"
+        ) {
+          toast.error("Location not within range");
+          isProcessingRef.current = false;
+          return;
+        } else if (error.response?.status === 401) {
           const refreshToken = localStorage.getItem("refreshToken");
           if (!refreshToken) {
             throw new Error("Authentication failed. Please log in again.");
@@ -246,13 +225,19 @@ const Scan = () => {
             throw new Error("Unable to refresh token. Please log in again.");
           }
         } else {
-          throw error;
+          toast.error(
+            error.response?.data?.detail ||
+              error.message ||
+              "Failed to mark attendance."
+          );
         }
       }
     } catch (error) {
       console.error("[handleScan] API Error:", error.response?.data || error.message);
       toast.error(
-        error.response?.data?.detail || error.message || "Failed to mark attendance."
+        error.response?.data?.detail ||
+          error.message ||
+          "Failed to mark attendance."
       );
     } finally {
       setTimeout(() => (isProcessingRef.current = false), 3000);
@@ -325,10 +310,21 @@ const Scan = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gray-50 shadow-sm p-4 w-full">
-        <h1 className="text-2xl font-bold text-gray-800">Scan QR Code</h1>
-      </header>
-      <main className="w-full max-w-3xl mx-auto bg-gray-200 rounded-xl shadow-sm p-6 pb-12 mt-24">
+      {/* Dashboard Header from MobileDashboard */}
+      <div
+        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
+        style={{
+          borderBottomColor: isDarkMode ? "#333" : "#ddd",
+        }}
+      >
+        <img
+          src="/images/team-logo.png"
+          alt="Team Logo"
+          className="w-[60px] h-auto pl-2 rounded-md"
+        />
+      </div>
+
+      <main className="w-full mx-auto bg-gray-200 rounded-xl shadow-sm p-0 mt-0">
         <div className="flex flex-col items-center">
           <p className="mb-4 text-sm text-gray-600">
             {isFaceMode
@@ -337,7 +333,7 @@ const Scan = () => {
           </p>
           {isFaceMode ? (
             <>
-              <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+              <div className="w-full h-full rounded-md overflow-hidden">
                 <video
                   ref={faceVideoRef}
                   className="w-full h-full object-cover"
@@ -359,7 +355,7 @@ const Scan = () => {
             </>
           ) : (
             <>
-              <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+              <div className="w-full h-full rounded-md overflow-hidden">
                 <video
                   ref={qrVideoRef}
                   className="w-full h-full object-cover"
@@ -367,33 +363,11 @@ const Scan = () => {
                   playsInline
                 />
               </div>
-              <button
-                onClick={testLocation}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              >
-                Test Location
-              </button>
-              {apiPayload && (
-                <div className="mt-4 p-4 bg-gray-100 rounded-md">
-                  <p className="text-sm text-gray-700">
-                    <strong>API Payload:</strong>
-                  </p>
-                  <pre className="text-xs text-gray-600">{apiPayload}</pre>
-                </div>
-              )}
-              {apiError && (
-                <div className="mt-4 p-4 bg-red-100 rounded-md">
-                  <p className="text-sm text-red-700">
-                    <strong>API Error:</strong>
-                  </p>
-                  <pre className="text-xs text-red-600">{apiError}</pre>
-                </div>
-              )}
             </>
           )}
         </div>
       </main>
-      <footer className="w-full max-w-4xl mx-auto mt-6 text-center">
+      <footer className="w-full text-center">
         <p className="text-xs text-gray-500">
           Ensure your camera is enabled and has sufficient lighting.
         </p>
