@@ -157,15 +157,35 @@ const Scan = () => {
     };
   }, [forceRender]);
 
-  // Assign stream to faceVideoRef when isFaceMode changes
+  // Switch to front-facing camera when isFaceMode is enabled
   useEffect(() => {
-    if (isFaceMode && faceVideoRef.current && stream) {
-      faceVideoRef.current.srcObject = stream;
-      faceVideoRef.current.play().catch((err) =>
-        console.error("[useEffect faceMode] Error playing face video:", err)
-      );
+    if (isFaceMode) {
+      const switchToFrontCamera = async () => {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop()); // Stop current stream
+        }
+
+        try {
+          const frontCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" }, // Switch to front-facing camera
+          });
+          setStream(frontCameraStream);
+
+          if (faceVideoRef.current) {
+            faceVideoRef.current.srcObject = frontCameraStream;
+            faceVideoRef.current.play().catch((err) =>
+              console.error("[useEffect faceMode] Error playing front camera video:", err)
+            );
+          }
+        } catch (error) {
+          console.error("[useEffect faceMode] Error switching to front camera:", error);
+          toast.error("Unable to switch to front camera.");
+        }
+      };
+
+      switchToFrontCamera();
     }
-  }, [isFaceMode, stream]);
+  }, [isFaceMode]);
 
   const stopCamera = () => {
     if (qrScannerRef.current) {
@@ -321,6 +341,7 @@ const Scan = () => {
       className={`flex flex-col h-screen ${
         isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
       }`}
+      style={{ overflowY: "hidden !important" }} // Disable overflow-y with !important
     >
       {/* Header */}
       <header className="bg-yellow-400 h-16 flex items-center justify-between w-full flex-shrink-0">
@@ -338,7 +359,7 @@ const Scan = () => {
             <>
               <video
                 ref={faceVideoRef}
-                className="h-full w-auto object-contain"
+                className="h-[calc(100vh-4rem)] w-auto object-contain" // Adjusted height for iPhone full display
                 style={{ transform: "scaleX(-1)" }}
                 playsInline
               />
@@ -360,8 +381,8 @@ const Scan = () => {
             <>
               <video
                 ref={qrVideoRef}
-                className="h-full w-auto object-contain"
-                style={{ transform: "scaleX(1) translateY(-80px)" }}
+                className="h-[calc(100vh-4rem)] w-auto object-contain" // Adjusted height for iPhone full display
+                style={{ transform: "scaleX(1) translateY(-100px)" }}
                 playsInline
               />
               <CustomOverlay />
