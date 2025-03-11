@@ -26,8 +26,10 @@ const CustomOverlay = () => {
   }, []);
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex justify-center items-center"
-    style={{ transform: "translateY(-2.1rem)" }} >
+    <div
+      className="absolute inset-0 pointer-events-none flex justify-center items-center"
+      style={{ transform: "translateY(-2.1rem)" }}
+    >
       <svg
         ref={svgRef}
         className="scan-region-highlight-svg"
@@ -50,6 +52,8 @@ const CustomOverlay = () => {
 };
 
 const Scan = () => {
+  console.log("[Render] <Scan />"); // Added for debugging render count
+
   const qrVideoRef = useRef(null);
   const faceVideoRef = useRef(null);
   const qrScannerRef = useRef(null);
@@ -64,6 +68,13 @@ const Scan = () => {
   const [isDarkMode, setIsDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
+  const [forceRender, setForceRender] = useState(false); // New state to force double render
+
+  // Force a second render after the initial render
+  useEffect(() => {
+    console.log("[useEffect] Forcing second render...");
+    setForceRender((prev) => !prev); // Toggle to trigger a second render
+  }, []); // Empty dependency array to run only on mount
 
   // Helper function to get the device's location
   const getLocation = () => {
@@ -110,7 +121,7 @@ const Scan = () => {
     return () => {
       stopCamera();
     };
-  }, []);
+  }, [forceRender]); // Add forceRender to dependency array to re-run on toggle
 
   // Assign stream to faceVideoRef when isFaceMode changes
   useEffect(() => {
