@@ -16,8 +16,6 @@ const Scan = () => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isImageUploaded, setIsImageUploaded] = useState(false);
   const [forceRender, setForceRender] = useState(false);
-  const [apiPayload, setApiPayload] = useState(""); // New state to display API payload
-  const [apiError, setApiError] = useState("");
 
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
@@ -40,18 +38,6 @@ const Scan = () => {
     });
   };
 
-  // Test location function
-  const testLocation = async () => {
-    try {
-      const position = await getLocation();
-      console.log("Test Location:", position.coords);
-      toast.success(`Location: Lat ${position.coords.latitude}, Lon ${position.coords.longitude}`);
-    } catch (error) {
-      console.error("Test Location Error:", error.message);
-      toast.error(`Location Test Failed: ${error.message}`);
-    }
-  };
-
   // Start the camera for QR scanning
   useEffect(() => {
     console.log("[useEffect] Starting QR camera...");
@@ -68,8 +54,12 @@ const Scan = () => {
 
           qrScannerRef.current = new QrScanner(
             qrVideoRef.current,
-            (result) => handleScan(result.data || result),
-            { highlightScanRegion: true, highlightCodeOutline: true }
+            (result) => handleScan(result),
+            {
+              highlightScanRegion: true,
+              highlightCodeOutline: true,
+              overlay: document.createElement("div"), // Ensure overlay is created
+            }
           );
 
           await qrVideoRef.current.play().catch((err) =>
@@ -77,6 +67,12 @@ const Scan = () => {
           );
 
           qrScannerRef.current.start();
+          qrScannerRef.current.$overlay.style.zIndex = "30"; // Ensure overlay is above video
+          qrScannerRef.current.$overlay.style.position = "absolute";
+          qrScannerRef.current.$overlay.style.top = "0";
+          qrScannerRef.current.$overlay.style.left = "0";
+          qrScannerRef.current.$overlay.style.width = "100%";
+          qrScannerRef.current.$overlay.style.height = "100%";
         }
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
@@ -173,8 +169,6 @@ const Scan = () => {
       const payload = JSON.stringify({ token, ...locationData });
       console.log("[handleScan] Sending request with:", { token, ...locationData });
       console.log("[DEBUG] API request payload:", payload);
-      setApiPayload(payload);
-      setApiError(""); // Clear previous error
 
       const axiosInstance = axios.create({
         baseURL: BASE_URL,
@@ -202,12 +196,18 @@ const Scan = () => {
         }
       } catch (error) {
         console.error("[handleScan] API Error:", error.response?.data || error.message);
-        setApiError(JSON.stringify(error.response?.data || error.message)); // Store error for display
-        if (error.response?.status === 401) {
+        const status = error.response?.status;
+        const detail = error.response?.data?.detail || error.message;
+        if (status === 401) {
+          toast.error(`401 - ${detail}. Please log in again.`);
+        } else if (status === 404) {
+          toast.error(`404 - ${detail}. Resource not found.`);
+        } else {
+          toast.error(`Error: ${detail}`);
+        }
+        if (status === 401) {
           const refreshToken = localStorage.getItem("refreshToken");
-          if (!refreshToken) {
-            throw new Error("Authentication failed. Please log in again.");
-          }
+          if (!refreshToken) throw new Error("No refresh token available.");
 
           try {
             const refreshResponse = await axios.post(
@@ -243,17 +243,13 @@ const Scan = () => {
             }
           } catch (refreshError) {
             console.error("Error refreshing token:", refreshError);
-            throw new Error("Unable to refresh token. Please log in again.");
+            toast.error("Unable to refresh token. Please log in again.");
           }
-        } else {
-          throw error;
         }
       }
     } catch (error) {
-      console.error("[handleScan] API Error:", error.response?.data || error.message);
-      toast.error(
-        error.response?.data?.detail || error.message || "Failed to mark attendance."
-      );
+      console.error("[handleScan] API Error:", error.message);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setTimeout(() => (isProcessingRef.current = false), 3000);
     }
@@ -324,76 +320,73 @@ const Scan = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-gray-50 shadow-sm p-4 w-full">
-        <h1 className="text-2xl font-bold text-gray-800">Scan QR Code</h1>
-      </header>
-      <main className="w-full max-w-3xl mx-auto bg-gray-200 rounded-xl shadow-sm p-6 pb-12 mt-24">
-        <div className="flex flex-col items-center">
-          <p className="mb-4 text-sm text-gray-600">
-            {isFaceMode
-              ? "Position your face in the frame and capture the photo."
-              : "Point your camera at the QR code to mark attendance."}
-          </p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header Section */}
+      <div
+        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
+      >
+        <img
+          src="/images/team-logo.png"
+          alt="Team Logo"
+          className="w-[60px] h-auto pl-2 rounded-md"
+        />
+      </div>
+
+      {/* Main Content - Full-screen video */}
+      <div className="flex-1 relative">
+        <video
+          ref={qrVideoRef}
+          className="w-full h-full object-cover fixed top-0 left-0 z-10"
+          style={{ transform: "scaleX(1)" }}
+          playsInline
+        />
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
           {isFaceMode ? (
             <>
-              <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
-                <video
-                  ref={faceVideoRef}
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(1)" }}
-                  playsInline
-                />
-              </div>
+              <video
+                ref={faceVideoRef}
+                className="w-full h-full object-cover"
+                style={{ transform: "scaleX(1)" }}
+                playsInline
+              />
               {!isImageUploaded && (
                 <button
                   onClick={handleCapturePhoto}
                   disabled={isCapturing}
-                  className={`mt-6 px-6 py-2 rounded-md text-white font-medium ${
-                    isCapturing ? "bg-gray-400" : "bg-gray-700 hover:bg-gray-800"
-                  }`}
+                  className="relative mx-auto mt-auto mb-16 z-30"
+                  style={{
+                    width: "80px",
+                    height: "80px",
+                    borderRadius: "50%",
+                    backgroundColor: "transparent",
+                    border: "4px solid #ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                  }}
                 >
-                  {isCapturing ? "Capturing..." : "Capture Photo"}
+                  <span
+                    className={`flex items-center justify-center text-white font-medium rounded-full ${
+                      isCapturing ? "bg-gray-400" : "bg-yellow-400 hover:bg-yellow-500"
+                    }`}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "50%",
+                    }}
+                  >
+                    {isCapturing ? "Capturing..." : "Capture"}
+                  </span>
                 </button>
               )}
             </>
-          ) : (
-            <>
-              <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
-                <video
-                  ref={qrVideoRef}
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(1)" }}
-                  playsInline
-                />
-              </div>
-              <button
-                onClick={testLocation}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              >
-                Test Location
-              </button>
-              {apiPayload && (
-                <div className="mt-4 p-4 bg-gray-100 rounded-md">
-                  <p className="text-sm text-gray-700">
-                    <strong>API Payload:</strong>
-                  </p>
-                  <pre className="text-xs text-gray-600">{apiPayload}</pre>
-                </div>
-              )}
-              {apiError && (
-                <div className="mt-4 p-4 bg-red-100 rounded-md">
-                  <p className="text-sm text-red-700">
-                    <strong>API Error:</strong>
-                  </p>
-                  <pre className="text-xs text-red-600">{apiError}</pre>
-                </div>
-              )}
-            </>
-          )}
+          ) : null}
         </div>
-      </main>
-      <footer className="w-full max-w-4xl mx-auto mt-6 text-center">
+      </div>
+
+      {/* Footer */}
+      <footer className="w-full max-w-4xl mx-auto mt-6 text-center pb-4">
         <p className="text-xs text-gray-500">
           Ensure your camera is enabled and has sufficient lighting.
         </p>
