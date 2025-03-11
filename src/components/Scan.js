@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
-import { toast } from "react-toastify";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -62,6 +61,7 @@ const Scan = () => {
   const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isImageUploaded, setIsImageUploaded] = useState(false);
+  const [errors, setErrors] = useState([]); // New state for error messages
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
@@ -69,6 +69,11 @@ const Scan = () => {
     localStorage.getItem("theme") === "dark"
   );
   const [forceRender, setForceRender] = useState(false);
+
+  // Helper to add error messages
+  const addError = (message) => {
+    setErrors((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
 
   // Force a second render after the initial render
   useEffect(() => {
@@ -110,14 +115,13 @@ const Scan = () => {
     setIsDarkMode(theme === "dark");
 
     const startQrCamera = async () => {
-      // Check if we've stored a previous "granted" permission
       const cachedPermission = localStorage.getItem("cameraPermission");
       const permissionState = await checkCameraPermission();
 
       if (cachedPermission === "granted" && permissionState === "granted") {
         console.log("[startQrCamera] Permission already granted, skipping prompt");
       } else if (permissionState === "denied") {
-        toast.error("Camera access denied. Please enable it in your browser settings.");
+        addError("Camera access denied. Please enable it in your browser settings.");
         return;
       }
 
@@ -127,7 +131,6 @@ const Scan = () => {
         });
         setStream(cameraStream);
 
-        // Store permission as granted once user allows it
         localStorage.setItem("cameraPermission", "granted");
         console.log("[startQrCamera] Camera access granted and cached");
 
@@ -145,8 +148,8 @@ const Scan = () => {
         }
       } catch (error) {
         console.error("[useEffect] Error accessing camera:", error);
-        toast.error("Unable to access camera. Check permissions.");
-        localStorage.setItem("cameraPermission", "denied"); // Cache denial
+        addError("Unable to access camera. Check permissions.");
+        localStorage.setItem("cameraPermission", "denied");
       }
     };
 
@@ -162,12 +165,12 @@ const Scan = () => {
     if (isFaceMode) {
       const switchToFrontCamera = async () => {
         if (stream) {
-          stream.getTracks().forEach((track) => track.stop()); // Stop current stream
+          stream.getTracks().forEach((track) => track.stop());
         }
 
         try {
           const frontCameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user" }, // Switch to front-facing camera
+            video: { facingMode: "user" },
           });
           setStream(frontCameraStream);
 
@@ -179,7 +182,7 @@ const Scan = () => {
           }
         } catch (error) {
           console.error("[useEffect faceMode] Error switching to front camera:", error);
-          toast.error("Unable to switch to front camera.");
+          addError("Unable to switch to front camera.");
         }
       };
 
@@ -209,8 +212,20 @@ const Scan = () => {
       const accessToken = localStorage.getItem("accessToken");
       if (!accessToken) throw new Error("Authentication error. Please log in.");
 
-      let scannedData = JSON.parse(result);
-      const { token, locationEnabled = false } = scannedData;
+      let token;
+      let locationEnabled = false;
+
+      // Try parsing as JSON, fall back to plain string if it fails
+      try {
+        const scannedData = JSON.parse(result);
+        token = scannedData.token;
+        locationEnabled = scannedData.locationEnabled || false;
+      } catch (parseError) {
+        console.log("[handleScan] QR code is not JSON, treating as plain token:", result);
+        token = result; // Use raw result as token if not JSON
+      }
+
+      if (!token) throw new Error("No token found in QR code.");
 
       let locationData = {};
       if (locationEnabled) {
@@ -222,10 +237,11 @@ const Scan = () => {
           };
         } catch (error) {
           console.error("Error getting location:", error);
-          toast.error("Unable to get location. Proceeding without it.");
+          addError("Unable to get location. Proceeding without it.");
         }
       }
 
+      console.log("[handleScan] Sending payload:", { token, ...locationData });
       const response = await axios.post(
         `${BASE_URL}/api/v1/attendance/`,
         { token, ...locationData },
@@ -233,7 +249,8 @@ const Scan = () => {
       );
 
       if (response.data?.id >= 0) {
-        toast.success("Attendance marked successfully!");
+        setErrors([]); // Clear errors on success
+        console.log("Attendance marked successfully:", response.data);
         if (response.data.session_id?.face_recognition_enabled) {
           setFaceImageUploadUrl(response.data.face_image_upload_url);
           setIsFaceMode(true);
@@ -249,7 +266,7 @@ const Scan = () => {
       if (error.response?.status === 401) {
         const refreshToken = localStorage.getItem("refreshToken");
         if (!refreshToken) {
-          toast.error("Authentication failed. Please log in again.");
+          addError("Authentication failed. Please log in again.");
           setTimeout(() => {
             window.location.replace("/");
           }, 1500);
@@ -264,14 +281,15 @@ const Scan = () => {
             window.location.reload();
           } catch (refreshError) {
             console.error("Error refreshing token:", refreshError);
-            toast.error("Unable to refresh token. Please log in again.");
+            addError("Unable to refresh token. Please log in again.");
             setTimeout(() => {
               window.location.replace("/");
             }, 1500);
           }
         }
       } else {
-        toast.error("Invalid QR code. Please try again.");
+        const errorMessage = error.response?.data?.detail || error.message || "Invalid QR code. Please try again.";
+        addError(`Scan error: ${errorMessage}`);
       }
     } finally {
       setTimeout(() => (isProcessingRef.current = false), 3000);
@@ -280,12 +298,12 @@ const Scan = () => {
 
   const handleCapturePhoto = async () => {
     if (!faceImageUploadUrl || !faceVideoRef.current) {
-      toast.error("Capture failed: Missing setup.");
+      addError("Capture failed: Missing setup.");
       return;
     }
 
     if (!faceVideoRef.current.srcObject || faceVideoRef.current.readyState === 0) {
-      toast.error("No active video stream. Please try again.");
+      addError("No active video stream. Please try again.");
       return;
     }
 
@@ -299,7 +317,7 @@ const Scan = () => {
     }
 
     if (faceVideoRef.current.readyState < 2) {
-      toast.error("Video stream not ready.");
+      addError("Video stream not ready.");
       setIsCapturing(false);
       return;
     }
@@ -321,7 +339,8 @@ const Scan = () => {
       });
 
       if (response.status === 200) {
-        toast.success("Face image uploaded successfully!");
+        setErrors([]); // Clear errors on success
+        console.log("Face image uploaded successfully!");
         setIsImageUploaded(true);
         stopCamera();
         setTimeout(() => {
@@ -330,7 +349,7 @@ const Scan = () => {
       }
     } catch (error) {
       console.error("[handleCapturePhoto] Error:", error);
-      toast.error("Failed to capture or upload photo.");
+      addError("Failed to capture or upload photo.");
     } finally {
       setIsCapturing(false);
     }
@@ -341,13 +360,13 @@ const Scan = () => {
       className={`flex flex-col h-screen ${
         isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
       }`}
-      style={{ overflowY: "hidden !important" }} // Disable overflow-y with !important
+      style={{ overflowY: "hidden !important" }}
     >
       {/* Header from MobileDashboard */}
       <div
         className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
         style={{
-          borderBottomColor: isDarkMode ? "#333" : "#ddd", overflowY: "hidden !important",// Dark mode border fix
+          borderBottomColor: isDarkMode ? "#333" : "#ddd",
         }}
       >
         <img
@@ -364,17 +383,17 @@ const Scan = () => {
             <>
               <video
                 ref={faceVideoRef}
-                className="h-[calc(100vh-4rem)] w-auto object-contain" // Adjusted height for iPhone full display
-                style={{ transform: "scaleX(-1) translateY(-90px)", overflowY: "hidden !important" }}
+                className="h-[calc(100vh-4rem)] w-auto object-contain"
+                style={{ transform: "scaleX(-1)" }}
                 playsInline
               />
               {!isImageUploaded && (
-                <div className="absolute bottom-16 w-full flex justify-center">
+                <div className="absolute bottom-8 w-full flex justify-center">
                   <button
                     onClick={handleCapturePhoto}
                     disabled={isCapturing}
                     className="relative"
-                    style={{ width: "72px", height: "72px" , overflowY: "hidden !important"}}
+                    style={{ width: "72px", height: "72px" }}
                   >
                     <div className="absolute inset-0 rounded-full bg-white" />
                     <div className="absolute w-16 h-16 rounded-full bg-yellow-400 bottom-12 left-2" />
@@ -386,8 +405,8 @@ const Scan = () => {
             <>
               <video
                 ref={qrVideoRef}
-                className="h-[calc(100vh-4rem)] w-auto object-contain" // Adjusted height for iPhone full display
-                style={{ transform: "scaleX(1) translateY(-90px)", overflowY: "hidden !important" }}
+                className="h-[calc(100vh-4rem)] w-auto object-contain"
+                style={{ transform: "scaleX(1) translateY(-90px)" }}
                 playsInline
               />
               <CustomOverlay />
@@ -395,6 +414,15 @@ const Scan = () => {
           )}
         </div>
       </main>
+
+      {/* Error Messages Display */}
+      {errors.length > 0 && (
+        <div className="p-4 text-red-500 text-sm">
+          {errors.map((error, index) => (
+            <p key={index}>{error}</p>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
