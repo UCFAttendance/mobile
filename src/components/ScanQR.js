@@ -9,6 +9,7 @@ const ScanQR = () => {
     const qrScannerRef = useRef(null);
     const isProcessingRef = useRef(false);
     const [stream, setStream] = useState(null);
+    const [isOverlayVisible, setIsOverlayVisible] = useState(false);
 
     useEffect(() => {
         console.log("[useEffect] Initializing QR Scanner...");
@@ -45,6 +46,16 @@ const ScanQR = () => {
 
                 console.log("[Step 6] Starting QR scanner...");
                 qrScannerRef.current.start();
+
+                // Force scanning frames if needed
+                setInterval(() => {
+                    if (qrScannerRef.current) {
+                        console.log("[DEBUG] Manually requesting a scan...");
+                        qrScannerRef.current.scanFrame().catch(err => console.warn("[DEBUG] No QR code detected yet"));
+                    }
+                }, 1000); // Scan every second
+                
+                setIsOverlayVisible(true); // Ensure overlay is visible
 
                 // Ensure scanner is running after a delay
                 setTimeout(() => {
@@ -122,7 +133,7 @@ const ScanQR = () => {
                     <p className="mb-4 text-sm text-gray-600">
                         Point your camera at the QR code to mark attendance.
                     </p>
-                    <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+                    <div className="relative w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
                         <video
                             ref={qrVideoRef}
                             className="w-full h-full object-cover"
@@ -130,6 +141,9 @@ const ScanQR = () => {
                             playsInline
                             muted
                         />
+                        {isOverlayVisible && (
+                            <div className="absolute inset-0 border-4 border-red-500 pointer-events-none"></div>
+                        )}
                     </div>
                 </div>
             </main>
