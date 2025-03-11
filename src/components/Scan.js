@@ -4,9 +4,52 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const Scan = () => {
-  console.log("[Render] <Scan />");
+const CustomOverlay = () => {
+  const svgRef = useRef(null);
 
+  useEffect(() => {
+    if (svgRef.current) {
+      try {
+        svgRef.current.animate(
+          { transform: ["scale(.98)", "scale(1.01)"] },
+          {
+            duration: 600,
+            iterations: Infinity,
+            direction: "alternate",
+            easing: "ease-in-out",
+          }
+        );
+      } catch (error) {
+        console.error("Animation error:", error);
+      }
+    }
+  }, []);
+
+  return (
+    <div className="absolute inset-0 pointer-events-none flex justify-center items-center"
+    style={{ transform: "translateY(-2.1rem)" }} >
+      <svg
+        ref={svgRef}
+        className="scan-region-highlight-svg"
+        viewBox="0 0 238 238"
+        preserveAspectRatio="none"
+        style={{
+          width: "50%",
+          height: "25%",
+          fill: "none",
+          stroke: "#e9b213",
+          strokeWidth: 8,
+          strokeLinecap: "round",
+          strokeLinejoin: "round",
+        }}
+      >
+        <path d="M31 2H10a8 8 0 0 0-8 8v21M207 2h21a8 8 0 0 1 8 8v21m0 176v21a8 8 0 0 1-8 8h-21m-176 0H10a8 8 0 0 1-8-8v-21" />
+      </svg>
+    </div>
+  );
+};
+
+const Scan = () => {
   const qrVideoRef = useRef(null);
   const faceVideoRef = useRef(null);
   const qrScannerRef = useRef(null);
@@ -15,11 +58,9 @@ const Scan = () => {
   const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isImageUploaded, setIsImageUploaded] = useState(false);
-
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
-
   const [isDarkMode, setIsDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
@@ -40,13 +81,11 @@ const Scan = () => {
     const theme = localStorage.getItem("theme");
     setIsDarkMode(theme === "dark");
 
-    console.log("[useEffect] Starting QR camera...");
     const startQrCamera = async () => {
       try {
         const cameraStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
         });
-        console.log("[useEffect] Got camera stream:", cameraStream.active);
         setStream(cameraStream);
 
         if (qrVideoRef.current) {
@@ -54,7 +93,7 @@ const Scan = () => {
           qrScannerRef.current = new QrScanner(
             qrVideoRef.current,
             (result) => handleScan(result.data || result),
-            { highlightScanRegion: true, highlightCodeOutline: true }
+            { highlightScanRegion: false, highlightCodeOutline: false }
           );
           await qrVideoRef.current.play().catch((err) =>
             console.error("[useEffect] Error playing QR video:", err)
@@ -69,7 +108,6 @@ const Scan = () => {
     startQrCamera();
 
     return () => {
-      console.log("[useEffect cleanup] Cleaning up...");
       stopCamera();
     };
   }, []);
@@ -77,12 +115,6 @@ const Scan = () => {
   // Assign stream to faceVideoRef when isFaceMode changes
   useEffect(() => {
     if (isFaceMode && faceVideoRef.current && stream) {
-      console.log("[useEffect faceMode] Stream active:", stream.active);
-      if (!stream.active) {
-        console.error("[useEffect faceMode] Stream is inactive. Reinitializing...");
-        toast.error("Camera stream lost. Please refresh the page.");
-        return;
-      }
       faceVideoRef.current.srcObject = stream;
       faceVideoRef.current.play().catch((err) =>
         console.error("[useEffect faceMode] Error playing face video:", err)
@@ -91,7 +123,6 @@ const Scan = () => {
   }, [isFaceMode, stream]);
 
   const stopCamera = () => {
-    console.log("[stopCamera] Stopping camera...");
     if (qrScannerRef.current) {
       qrScannerRef.current.stop();
       qrScannerRef.current.destroy();
@@ -110,14 +141,12 @@ const Scan = () => {
     isProcessingRef.current = true;
 
     try {
-        const accessToken = localStorage.getItem("accessToken");
-        if (!accessToken) throw new Error("Authentication error. Please log in.");
+      const accessToken = localStorage.getItem("accessToken");
+      if (!accessToken) throw new Error("Authentication error. Please log in.");
 
-      // Parse the QR code data
       let scannedData = JSON.parse(result);
       const { token, locationEnabled = false } = scannedData;
 
-      // Initialize location data
       let locationData = {};
       if (locationEnabled) {
         try {
@@ -126,28 +155,26 @@ const Scan = () => {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           };
-          console.log("Student's location:", locationData);
         } catch (error) {
           console.error("Error getting location:", error);
           toast.error("Unable to get location. Proceeding without it.");
         }
       }
 
-      // Make the API request
       const response = await axios.post(
         `${BASE_URL}/api/v1/attendance/`,
         { token, ...locationData },
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
 
-      console.log("[handleScan] API response:", response.data);
       if (response.data?.id >= 0) {
         toast.success("Attendance marked successfully!");
+        // If face recognition is enabled, switch to face mode
         if (response.data.session_id?.face_recognition_enabled) {
-          console.log("[handleScan] Face mode enabled. Upload URL:", response.data.face_image_upload_url);
           setFaceImageUploadUrl(response.data.face_image_upload_url);
           setIsFaceMode(true);
         } else {
+          // Otherwise, stop the camera and redirect
           stopCamera();
           setTimeout(() => {
             window.location.replace("/student/dashboard?refresh=" + Date.now());
@@ -156,13 +183,43 @@ const Scan = () => {
       }
     } catch (error) {
       console.error("[handleScan] Error:", error);
-      toast.error("Invalid QR code. Please try again.");
+
+      // Add 401 logic:
+      if (error.response?.status === 401) {
+        // Attempt to refresh token
+        const refreshToken = localStorage.getItem("refreshToken");
+        if (!refreshToken) {
+          toast.error("Authentication failed. Please log in again.");
+          // Optionally navigate or redirect to login:
+          setTimeout(() => {
+            window.location.replace("/");
+          }, 1500);
+        } else {
+          try {
+            const refreshResponse = await axios.post(
+              `${process.env.REACT_APP_BASE_URL}/api-auth/v1/token/refresh/`,
+              { refresh: refreshToken }
+            );
+            const newToken = refreshResponse.data.access;
+            localStorage.setItem("accessToken", newToken);
+
+            // After refreshing, we can re-run the same request or just reload:
+            window.location.reload();
+          } catch (refreshError) {
+            console.error("Error refreshing token:", refreshError);
+            toast.error("Unable to refresh token. Please log in again.");
+            setTimeout(() => {
+              window.location.replace("/");
+            }, 1500);
+          }
+        }
+      } else {
+        toast.error("Invalid QR code. Please try again.");
+      }
     } finally {
       setTimeout(() => (isProcessingRef.current = false), 3000);
     }
-};
-
-
+  };
 
   const handleCapturePhoto = async () => {
     if (!faceImageUploadUrl || !faceVideoRef.current) {
@@ -180,7 +237,6 @@ const Scan = () => {
     let attempts = 0;
 
     while (attempts < maxAttempts && faceVideoRef.current.readyState < 2) {
-      console.log("[handleCapturePhoto] Video not ready, waiting...");
       await new Promise((resolve) => setTimeout(resolve, 500));
       attempts++;
     }
@@ -202,7 +258,6 @@ const Scan = () => {
       const blob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", 0.9)
       );
-      console.log("[handleCapturePhoto] Blob created:", blob.size);
 
       const response = await axios.put(faceImageUploadUrl, blob, {
         headers: { "Content-Type": "image/jpeg" },
@@ -225,81 +280,61 @@ const Scan = () => {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${
-      isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
-    }`}>
-      {/* Header Section */}
-      <div className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2">
+    <div
+      className={`flex flex-col h-screen ${
+        isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
+      }`}
+    >
+      {/* Header */}
+      <header className="bg-yellow-400 h-16 flex items-center justify-between w-full flex-shrink-0">
         <img
           src="/images/team-logo.png"
           alt="Team Logo"
-          className="w-[60px] h-auto pl-2 rounded-md"
+          className="w-16 h-auto pl-2 rounded-md"
         />
-      </div>
+      </header>
 
-      {/* Main Content */}
-      <main className="p-6 flex-1 overflow-y-auto">
-        <h1 className={`text-2xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-800"}`}>Scan QR Code</h1>
-        <div className="flex flex-col items-center">
-          <p className={`mb-4 text-sm ${isDarkMode ? "text-white" : "text-gray-800"}`}>
-            {isFaceMode
-              ? "Position your face in the frame and capture the photo."
-              : "Point your camera at the QR code to mark attendance."}
-          </p>
+      {/* Main Content: Video fills remaining vertical space */}
+      <main className="flex-1 relative overflow-hidden">
+        <div className="relative w-full h-full flex items-center justify-center">
           {isFaceMode ? (
             <>
-              <div className="w-full max-w-md aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
-                <video
-                  ref={faceVideoRef}
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)" }}
-                  playsInline
-                />
-              </div>
-              {!isImageUploaded && (
-                <button
-                  onClick={handleCapturePhoto}
-                  disabled={isCapturing}
-                  className={`mt-6 px-6 py-2 rounded-md text-white font-medium ${
-                    isCapturing ? "bg-gray-400" : "bg-gray-700 hover:bg-gray-800"
-                  }`}
-                >
-                  {isCapturing ? "Capturing..." : "Capture Photo"}
-                </button>
-              )}
-            </>
-          ) : (
-            <div className="w-full max-w-md aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
               <video
-                ref={qrVideoRef}
-                className="w-full h-full object-cover"
+                ref={faceVideoRef}
+                className="h-full w-auto object-contain"
                 style={{ transform: "scaleX(-1)" }}
                 playsInline
               />
-            </div>
+              {/* Camera button only shows if the user hasn't uploaded yet */}
+              {!isImageUploaded && (
+                <div className="absolute bottom-8 w-full flex justify-center">
+                  <button
+                    onClick={handleCapturePhoto}
+                    disabled={isCapturing}
+                    className="relative"
+                    style={{ width: "72px", height: "72px" }} // Outer container
+                  >
+                    {/* White outer circle */}
+                    <div className="absolute inset-0 rounded-full bg-white" />
+                    {/* Yellow inner circle */}
+                    <div className="absolute w-16 h-16 rounded-full bg-yellow-400 bottom-12 left-2" />
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <video
+                ref={qrVideoRef}
+                className="h-full w-auto object-contain"
+                style={{ transform: "scaleX(-1) translateY(-33px)" }}
+                playsInline
+              />
+              <CustomOverlay />
+            </>
           )}
         </div>
       </main>
-
-      {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 w-full bg-gray-200 p-2 flex justify-around">
-        <a href="/student/dashboard" className="text-gray-700 text-center">
-          <span className="block">Dashboard</span>
-          <i className="fas fa-home"></i>
-        </a>
-        <a href="/student/scan" className="text-blue-600 text-center">
-          <span className="block">Scan</span>
-          <i className="fas fa-qrcode"></i>
-        </a>
-        <a href="/student/history" className="text-gray-700 text-center">
-          <span className="block">History</span>
-          <i className="fas fa-history"></i>
-        </a>
-        <a href="/student/settings" className="text-gray-700 text-center">
-          <span className="block">Settings</span>
-          <i className="fas fa-cog"></i>
-        </a>
-      </div>
     </div>
   );
 };

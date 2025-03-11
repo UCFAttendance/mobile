@@ -13,7 +13,8 @@ const BottomNav = () => {
       flexDirection: 'column',
       alignItems: 'center',
       textDecoration: 'none',
-      color: isActive ? '#007bff' : darkMode ? '#bbb' : '#333', // Ensure both icon & text turn blue in dark mode
+      color: isActive ? '#007bff' : darkMode ? '#bbb' : '#333',
+      flex: 1, // Ensures equal spacing and prevents shifting
     };
   };
 
@@ -34,16 +35,16 @@ const BottomNav = () => {
       }}
     >
       <NavLink to="/student/dashboard" style={getNavItemStyle('/student/dashboard')}>
-        <FaHome 
-          size={24} 
-          style={{ color: location.pathname === "/student/dashboard" ? "#007bff" : darkMode ? "#bbb" : "#333" }} 
+        <FaHome
+          size={24}
+          style={{ color: location.pathname === '/student/dashboard' ? '#007bff' : darkMode ? '#bbb' : '#333' }}
         />
-        <p 
-          style={{ 
-            fontSize: '12px', 
-            marginTop: '3px', 
-            fontWeight: location.pathname === "/student/dashboard" ? "bold" : "normal", // Make active text bold
-            color: location.pathname === "/student/dashboard" ? "#007bff" : darkMode ? "#bbb" : "#333" 
+        <p
+          style={{
+            fontSize: '12px',
+            marginTop: '3px',
+            // Removed fontWeight toggle to prevent shifting
+            color: location.pathname === '/student/dashboard' ? '#007bff' : darkMode ? '#bbb' : '#333',
           }}
         >
           Dashboard
@@ -51,16 +52,15 @@ const BottomNav = () => {
       </NavLink>
 
       <NavLink to="/student/attendance" style={getNavItemStyle('/student/attendance')}>
-        <FaQrcode 
-          size={24} 
-          style={{ color: location.pathname === "/student/attendance" ? "#007bff" : darkMode ? "#bbb" : "#333" }} 
+        <FaQrcode
+          size={24}
+          style={{ color: location.pathname === '/student/attendance' ? '#007bff' : darkMode ? '#bbb' : '#333' }}
         />
-        <p 
-          style={{ 
-            fontSize: '12px', 
-            marginTop: '3px', 
-            fontWeight: location.pathname === "/student/attendance" ? "bold" : "normal",
-            color: location.pathname === "/student/attendance" ? "#007bff" : darkMode ? "#bbb" : "#333" 
+        <p
+          style={{
+            fontSize: '12px',
+            marginTop: '3px',
+            color: location.pathname === '/student/attendance' ? '#007bff' : darkMode ? '#bbb' : '#333',
           }}
         >
           Attendance
@@ -68,16 +68,15 @@ const BottomNav = () => {
       </NavLink>
 
       <NavLink to="/student/history" style={getNavItemStyle('/student/history')}>
-        <FaHistory 
-          size={24} 
-          style={{ color: location.pathname === "/student/history" ? "#007bff" : darkMode ? "#bbb" : "#333" }} 
+        <FaHistory
+          size={24}
+          style={{ color: location.pathname === '/student/history' ? '#007bff' : darkMode ? '#bbb' : '#333' }}
         />
-        <p 
-          style={{ 
-            fontSize: '12px', 
-            marginTop: '3px', 
-            fontWeight: location.pathname === "/student/history" ? "bold" : "normal",
-            color: location.pathname === "/student/history" ? "#007bff" : darkMode ? "#bbb" : "#333" 
+        <p
+          style={{
+            fontSize: '12px',
+            marginTop: '3px',
+            color: location.pathname === '/student/history' ? '#007bff' : darkMode ? '#bbb' : '#333',
           }}
         >
           History
@@ -85,16 +84,15 @@ const BottomNav = () => {
       </NavLink>
 
       <NavLink to="/student/settings" style={getNavItemStyle('/student/settings')}>
-        <FaCog 
-          size={24} 
-          style={{ color: location.pathname === "/student/settings" ? "#007bff" : darkMode ? "#bbb" : "#333" }} 
+        <FaCog
+          size={24}
+          style={{ color: location.pathname === '/student/settings' ? '#007bff' : darkMode ? '#bbb' : '#333' }}
         />
-        <p 
-          style={{ 
-            fontSize: '12px', 
-            marginTop: '3px', 
-            fontWeight: location.pathname === "/student/settings" ? "bold" : "normal",
-            color: location.pathname === "/student/settings" ? "#007bff" : darkMode ? "#bbb" : "#333" 
+        <p
+          style={{
+            fontSize: '12px',
+            marginTop: '3px',
+            color: location.pathname === '/student/settings' ? '#007bff' : darkMode ? '#bbb' : '#333',
           }}
         >
           Settings

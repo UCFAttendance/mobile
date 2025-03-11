@@ -99,7 +99,7 @@ const AppContent = ({ darkMode, setDarkMode, locationEnabled, setLocationEnabled
         style={{
           flex: 1,
           overflowY: "auto",
-          paddingBottom: shouldShowBottomNav ? "60px" : "0px",
+          paddingBottom: "0px",
         }}
       >
         <Routes>

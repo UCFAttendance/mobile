@@ -1,6 +1,49 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
+const CourseWidget = ({ course, attendanceRecords, index, isDarkMode }) => {
+  const headerColors = ["#3dc1d3", "#ff6b6b", "#ffc904"];
+  const backgroundColor = headerColors[index % 3];
+  const textColor = backgroundColor;
+
+  const calculateAverageGrade = (records) => {
+    if (!records || records.length === 0) return "N/A";
+    const validRecords = records.filter((record) => record.status !== "Processing");
+    if (validRecords.length === 0) return "N/A";
+    const totalScore = validRecords.reduce((sum, record) => sum + (record.status === "Success" ? 100 : 0), 0);
+    const average = totalScore / validRecords.length;
+    return Number.isInteger(average) ? `${average}%` : `${average.toFixed(2)}%`;
+  };
+
+  const percentage = calculateAverageGrade(attendanceRecords);
+
+  return (
+    <div className={`rounded-lg shadow-md overflow-hidden ${isDarkMode ? "bg-[#333]" : "bg-white"}`}>
+      {/* Header */}
+      <div
+        style={{ backgroundColor }}
+        className="h-[60px] flex items-center justify-between px-4 relative"
+      >
+        {percentage !== "N/A" && (
+          <div
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full px-2 py-0.5"
+            style={{ color: textColor }}
+          >
+            <span className="text-sm font-medium">{percentage}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="h-[60px] flex items-center justify-between px-4">
+        <span className="font-semibold text-lg" style={{ color: textColor }}>
+          {course.name}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const History = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,6 +52,7 @@ const History = () => {
   const [isDarkMode, setIsDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
+  const [userName, setUserName] = useState("Student");
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -19,6 +63,17 @@ const History = () => {
   useEffect(() => {
     const theme = localStorage.getItem("theme");
     setIsDarkMode(theme === "dark");
+
+    // Retrieve user's name
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserName(user.name || "Student");
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
 
     const fetchAttendanceData = async () => {
       try {
@@ -69,7 +124,8 @@ const History = () => {
             );
             const newToken = refreshResponse.data.access;
             localStorage.setItem("accessToken", newToken);
-            window.location.reload(); // Reload the page to fetch data with the new token
+            window.location.reload();
+            return;
           } catch (refreshError) {
             console.error("Error refreshing token:", refreshError);
             setError("Unable to refresh token. Please log in again.");
@@ -85,6 +141,28 @@ const History = () => {
 
     fetchAttendanceData();
   }, []);
+
+  const calculateOverallAttendance = () => {
+    const allRecords = attendanceRecords;
+    const validRecords = allRecords.filter((record) => record.status !== "Processing");
+
+    if (validRecords.length === 0) return "N/A";
+
+    const totalScore = validRecords.reduce(
+      (sum, record) => sum + (record.status === "Success" ? 100 : 0),
+      0
+    );
+    const average = totalScore / validRecords.length;
+
+    return Number.isInteger(average) ? `${average}%` : `${average.toFixed(2)}%`;
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return "Good Morning";
+    if (hour >= 12 && hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
 
   if (loading) {
     return (
@@ -103,15 +181,16 @@ const History = () => {
   }
 
   return (
-    <div className={`min-h-screen ${
-            isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
-        } flex flex-col`}>
-      
-      {/* Header (without title) */}
+    <div
+      className={`min-h-screen ${
+        isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
+      } flex flex-col`}
+    >
+      {/* Header Section - Using MobileDashboard's header component */}
       <div
-        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full p-2"
+        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
         style={{
-          borderBottomColor: isDarkMode ? "#333" : "#ddd", // Dark mode border fix
+          borderBottomColor: isDarkMode ? "#333" : "#ddd",
         }}
       >
         <img
@@ -125,9 +204,10 @@ const History = () => {
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-6">History</h1>
 
-
         {attendanceRecords.length === 0 ? (
-          <p className="text-center text-gray-600">No attendance records found.</p>
+          <p className="text-center text-gray-600">
+            No attendance records found.
+          </p>
         ) : (
           <div className="space-y-2">
             {attendanceRecords.map((record, index) => (
@@ -138,10 +218,20 @@ const History = () => {
                 }`}
               >
                 <div>
-                  <p className={`${isDarkMode ? "font-bold text-gray-200" : "font-bold text-gray-800"}`}>
-                    {`${record.courseName}`}</p>
-                  <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                    {`${record.date}, ${record.time}`}</p>
+                  <p
+                    className={`${
+                      isDarkMode ? "font-bold text-gray-200" : "font-bold text-gray-800"
+                    }`}
+                  >
+                    {`${record.courseName}`}
+                  </p>
+                  <p
+                    className={`text-sm ${
+                      isDarkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
+                    {`${record.date}, ${record.time}`}
+                  </p>
                 </div>
                 <span
                   className="px-2 py-1 rounded-full font-medium"
@@ -171,26 +261,6 @@ const History = () => {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 w-full bg-gray-200 p-2 flex justify-around">
-        <a href="#" className="text-gray-700 text-center">
-          <span className="block">Dashboard</span>
-          <i className="fas fa-home"></i>
-        </a>
-        <a href="#" className="text-gray-700 text-center">
-          <span className="block">Attendance</span>
-          <i className="fas fa-qrcode"></i>
-        </a>
-        <a href="#" className="text-blue-600 text-center">
-          <span className="block">History</span>
-          <i className="fas fa-history"></i>
-        </a>
-        <a href="#" className="text-gray-700 text-center">
-          <span className="block">Settings</span>
-          <i className="fas fa-cog"></i>
-        </a>
       </div>
     </div>
   );

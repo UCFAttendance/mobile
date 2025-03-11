@@ -51,7 +51,6 @@ const ScanQR = () => {
             { highlightScanRegion: true, highlightCodeOutline: true }
           );
 
-          //The issue
           await qrVideoRef.current.play().catch((err) =>
             console.error("[useEffect] Error playing QR video:", err)
           );
@@ -110,75 +109,127 @@ const ScanQR = () => {
 
     let scannedData;
     try {
-        scannedData = JSON.parse(result);
+      scannedData = JSON.parse(result);
     } catch (error) {
-        console.error("[handleScan] Error parsing QR code data:", error);
-        toast.error("Invalid QR code format. Please try again.");
-        isProcessingRef.current = false;
-        return;
+      console.error("[handleScan] Error parsing QR code data:", error);
+      toast.error("Invalid QR code format. Please try again.");
+      isProcessingRef.current = false;
+      return;
     }
 
     const { token, locationEnabled = false } = scannedData;
 
     if (!token) {
-        console.error("[handleScan] No token found in QR data.");
-        toast.error("Invalid QR code. Please try again.");
-        isProcessingRef.current = false;
-        return;
+      console.error("[handleScan] No token found in QR data.");
+      toast.error("Invalid QR code. Please try again.");
+      isProcessingRef.current = false;
+      return;
     }
 
     try {
-        const accessToken = localStorage.getItem("accessToken");
-        if (!accessToken) throw new Error("Authentication error. Please log in.");
+      let accessToken = localStorage.getItem("accessToken");
+      if (!accessToken) throw new Error("Authentication error. Please log in.");
 
-        let locationData = {};
-        if (locationEnabled) {
-            try {
-                const position = await getLocation();
-                locationData = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                };
-                console.log("Student's location:", locationData);
-            } catch (error) {
-                console.error("Error getting location:", error);
-                toast.error("Unable to get location. Proceeding without it.");
-            }
+      let locationData = {};
+      if (locationEnabled) {
+        try {
+          const position = await getLocation();
+          locationData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          console.log("Student's location:", locationData);
+        } catch (error) {
+          console.error("Error getting location:", error);
+          toast.error("Unable to get location. Proceeding without it.");
         }
+      }
 
-        console.log("[handleScan] Sending request with:", { token, ...locationData });
-        console.log("[DEBUG] API request payload:", JSON.stringify({ token, ...locationData }));
-        const response = await axios.post(
-          `${BASE_URL}/api/v1/attendance/`,
-          JSON.stringify({ token, ...locationData }),
-          {
-              headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${accessToken}`,
-              },
-          }
-      );
+      console.log("[handleScan] Sending request with:", { token, ...locationData });
+      console.log("[DEBUG] API request payload:", JSON.stringify({ token, ...locationData }));
+
+      const axiosInstance = axios.create({
+        baseURL: BASE_URL,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      try {
+        const response = await axiosInstance.post(
+          "/api/v1/attendance/",
+          JSON.stringify({ token, ...locationData })
+        );
 
         console.log("[handleScan] API response:", response.data);
         if (response.data?.id >= 0) {
-            toast.success("Attendance marked successfully!");
-            if (response.data.session_id?.face_recognition_enabled) {
-                setFaceImageUploadUrl(response.data.face_image_upload_url);
+          toast.success("Attendance marked successfully!");
+          if (response.data.session_id?.face_recognition_enabled) {
+            setFaceImageUploadUrl(response.data.face_image_upload_url);
+            setIsFaceMode(true);
+          } else {
+            stopCamera();
+            setTimeout(() => {
+              window.location.replace("/student/dashboard?refresh=" + Date.now());
+            }, 3000);
+          }
+        }
+      } catch (error) {
+        if (error.response?.status === 401) {
+          const refreshToken = localStorage.getItem("refreshToken");
+          if (!refreshToken) {
+            throw new Error("Authentication failed. Please log in again.");
+          }
+
+          try {
+            const refreshResponse = await axios.post(
+              `${BASE_URL}/api-auth/v1/token/refresh/`,
+              { refresh: refreshToken }
+            );
+            accessToken = refreshResponse.data.access;
+            localStorage.setItem("accessToken", accessToken);
+
+            // Retry the original request with the new token
+            const retryResponse = await axios.post(
+              `${BASE_URL}/api/v1/attendance/`,
+              JSON.stringify({ token, ...locationData }),
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              }
+            );
+
+            console.log("[handleScan] Retry API response:", retryResponse.data);
+            if (retryResponse.data?.id >= 0) {
+              toast.success("Attendance marked successfully!");
+              if (retryResponse.data.session_id?.face_recognition_enabled) {
+                setFaceImageUploadUrl(retryResponse.data.face_image_upload_url);
                 setIsFaceMode(true);
-            } else {
+              } else {
                 stopCamera();
                 setTimeout(() => {
-                    window.location.replace("/student/dashboard?refresh=" + Date.now());
+                  window.location.replace("/student/dashboard?refresh=" + Date.now());
                 }, 3000);
+              }
             }
+          } catch (refreshError) {
+            console.error("Error refreshing token:", refreshError);
+            throw new Error("Unable to refresh token. Please log in again.");
+          }
+        } else {
+          throw error; // Re-throw other errors
         }
+      }
     } catch (error) {
-        console.error("[handleScan] API Error:", error.response?.data || error.message);
-        toast.error(error.response?.data?.detail || "Invalid QR code. Please try again.");
+      console.error("[handleScan] API Error:", error.response?.data || error.message);
+      toast.error(error.response?.data?.detail || error.message || "Invalid QR code. Please try again.");
     } finally {
-        setTimeout(() => (isProcessingRef.current = false), 3000);
+      setTimeout(() => (isProcessingRef.current = false), 3000);
     }
-};
+  };
 
   const handleCapturePhoto = async () => {
     if (!faceImageUploadUrl || !faceVideoRef.current) {
@@ -231,10 +282,10 @@ const ScanQR = () => {
       if (response.status === 200) {
         toast.success("Face image uploaded successfully!");
         setIsImageUploaded(true);
-        stopCamera(); // Stop the camera immediately
+        stopCamera();
         setTimeout(() => {
           window.location.replace("/student/dashboard?refresh=" + Date.now());
-        }, 3000); // 3-second delay before navigating
+        }, 3000);
       }
     } catch (error) {
       console.error("[handleCapturePhoto] Error:", error);
