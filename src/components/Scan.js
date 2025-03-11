@@ -361,7 +361,7 @@ const Scan = () => {
               <video
                 ref={qrVideoRef}
                 className="h-full w-auto object-contain"
-                style={{ transform: "scaleX(-1) translateY(-33px)" }}
+                style={{ transform: "scaleX(1) translateY(-80px)" }}
                 playsInline
               />
               <CustomOverlay />
