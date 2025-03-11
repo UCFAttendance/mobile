@@ -28,7 +28,7 @@ const CustomOverlay = () => {
   return (
     <div
       className="absolute inset-0 pointer-events-none flex justify-center items-center"
-      style={{ transform: "translateY(-2.1rem)" }}
+      style={{ transform: "translateY(-5rem)" }}
     >
       <svg
         ref={svgRef}
@@ -343,14 +343,19 @@ const Scan = () => {
       }`}
       style={{ overflowY: "hidden !important" }} // Disable overflow-y with !important
     >
-      {/* Header */}
-      <header className="bg-yellow-400 h-16 flex items-center justify-between w-full flex-shrink-0">
+      {/* Header from MobileDashboard */}
+      <div
+        className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
+        style={{
+          borderBottomColor: isDarkMode ? "#333" : "#ddd", // Dark mode border fix
+        }}
+      >
         <img
           src="/images/team-logo.png"
           alt="Team Logo"
-          className="w-16 h-auto pl-2 rounded-md"
+          className="w-[60px] h-auto pl-2 rounded-md"
         />
-      </header>
+      </div>
 
       {/* Main Content: Video fills remaining vertical space */}
       <main className="flex-1 relative overflow-hidden">
@@ -382,7 +387,7 @@ const Scan = () => {
               <video
                 ref={qrVideoRef}
                 className="h-[calc(100vh-4rem)] w-auto object-contain" // Adjusted height for iPhone full display
-                style={{ transform: "scaleX(1) translateY(-100px)" }}
+                style={{ transform: "scaleX(1) translateY(-90px)" }}
                 playsInline
               />
               <CustomOverlay />
