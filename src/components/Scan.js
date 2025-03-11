@@ -4,8 +4,8 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const ScanQR = () => {
-  console.log("[Render] <ScanQR />");
+const Scan = () => {
+  console.log("[Render] <Scan />");
 
   const qrVideoRef = useRef(null);
   const faceVideoRef = useRef(null);
@@ -15,7 +15,8 @@ const ScanQR = () => {
   const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isImageUploaded, setIsImageUploaded] = useState(false);
-  const [forceRender, setForceRender] = useState(false); // New state to force double render
+  const [forceRender, setForceRender] = useState(false);
+  const [apiPayload, setApiPayload] = useState(""); // New state to display API payload
 
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
@@ -24,8 +25,8 @@ const ScanQR = () => {
   // Force a second render after the initial render
   useEffect(() => {
     console.log("[useEffect] Forcing second render...");
-    setForceRender((prev) => !prev); // Toggle to trigger a second render
-  }, []); // Empty dependency array to run only on mount
+    setForceRender((prev) => !prev);
+  }, []);
 
   // Helper function to get the device's location
   const getLocation = () => {
@@ -36,6 +37,18 @@ const ScanQR = () => {
         navigator.geolocation.getCurrentPosition(resolve, reject);
       }
     });
+  };
+
+  // Test location function
+  const testLocation = async () => {
+    try {
+      const position = await getLocation();
+      console.log("Test Location:", position.coords);
+      toast.success(`Location: Lat ${position.coords.latitude}, Lon ${position.coords.longitude}`);
+    } catch (error) {
+      console.error("Test Location Error:", error.message);
+      toast.error(`Location Test Failed: ${error.message}`);
+    }
   };
 
   // Start the camera for QR scanning
@@ -51,7 +64,7 @@ const ScanQR = () => {
 
         if (qrVideoRef.current) {
           qrVideoRef.current.srcObject = cameraStream;
-          
+
           qrScannerRef.current = new QrScanner(
             qrVideoRef.current,
             (result) => handleScan(result.data || result),
@@ -75,7 +88,7 @@ const ScanQR = () => {
       console.log("[useEffect cleanup] Cleaning up...");
       stopCamera();
     };
-  }, [forceRender]); // Add forceRender to dependency array to re-run on toggle
+  }, [forceRender]);
 
   // Assign stream to faceVideoRef when isFaceMode changes
   useEffect(() => {
@@ -148,12 +161,18 @@ const ScanQR = () => {
           console.log("Student's location:", locationData);
         } catch (error) {
           console.error("Error getting location:", error);
-          toast.error("Unable to get location. Proceeding without it.");
+          if (locationEnabled) {
+            toast.error("Location access is required to mark attendance.");
+            isProcessingRef.current = false;
+            return; // Exit early if location is required but unavailable
+          }
         }
       }
 
+      const payload = JSON.stringify({ token, ...locationData });
       console.log("[handleScan] Sending request with:", { token, ...locationData });
-      console.log("[DEBUG] API request payload:", JSON.stringify({ token, ...locationData }));
+      console.log("[DEBUG] API request payload:", payload);
+      setApiPayload(payload); // Set the payload to display on the page
 
       const axiosInstance = axios.create({
         baseURL: BASE_URL,
@@ -164,10 +183,7 @@ const ScanQR = () => {
       });
 
       try {
-        const response = await axiosInstance.post(
-          "/api/v1/attendance/",
-          JSON.stringify({ token, ...locationData })
-        );
+        const response = await axiosInstance.post("/api/v1/attendance/", payload);
 
         console.log("[handleScan] API response:", response.data);
         if (response.data?.id >= 0) {
@@ -197,10 +213,9 @@ const ScanQR = () => {
             accessToken = refreshResponse.data.access;
             localStorage.setItem("accessToken", accessToken);
 
-            // Retry the original request with the new token
             const retryResponse = await axios.post(
               `${BASE_URL}/api/v1/attendance/`,
-              JSON.stringify({ token, ...locationData }),
+              payload,
               {
                 headers: {
                   "Content-Type": "application/json",
@@ -227,12 +242,14 @@ const ScanQR = () => {
             throw new Error("Unable to refresh token. Please log in again.");
           }
         } else {
-          throw error; // Re-throw other errors
+          throw error;
         }
       }
     } catch (error) {
       console.error("[handleScan] API Error:", error.response?.data || error.message);
-      toast.error(error.response?.data?.detail || error.message || "Invalid QR code. Please try again.");
+      toast.error(
+        error.response?.data?.detail || error.message || "Failed to mark attendance."
+      );
     } finally {
       setTimeout(() => (isProcessingRef.current = false), 3000);
     }
@@ -320,7 +337,7 @@ const ScanQR = () => {
                 <video
                   ref={faceVideoRef}
                   className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)" }}
+                  style={{ transform: "scaleX(1)" }}
                   playsInline
                 />
               </div>
@@ -337,14 +354,30 @@ const ScanQR = () => {
               )}
             </>
           ) : (
-            <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
-              <video
-                ref={qrVideoRef}
-                className="w-full h-full object-cover"
-                style={{ transform: "scaleX(-1)" }}
-                playsInline
-              />
-            </div>
+            <>
+              <div className="w-full max-w-3xl aspect-video rounded-md border border-gray-200 bg-white overflow-hidden">
+                <video
+                  ref={qrVideoRef}
+                  className="w-full h-full object-cover"
+                  style={{ transform: "scaleX(1)" }}
+                  playsInline
+                />
+              </div>
+              <button
+                onClick={testLocation}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Test Location
+              </button>
+              {apiPayload && (
+                <div className="mt-4 p-4 bg-gray-100 rounded-md">
+                  <p className="text-sm text-gray-700">
+                    <strong>API Payload:</strong>
+                  </p>
+                  <pre className="text-xs text-gray-600">{apiPayload}</pre>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
@@ -357,4 +390,4 @@ const ScanQR = () => {
   );
 };
 
-export default ScanQR;
+export default Scan;
