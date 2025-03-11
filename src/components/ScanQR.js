@@ -17,6 +17,7 @@ const ScanQR = () => {
         const startQrCamera = async () => {
             console.log("[Step 1] Attempting to access camera...");
             try {
+                // Stop existing scanner if any
                 if (qrScannerRef.current) {
                     console.warn("[Step 2] Stopping and destroying existing QR scanner...");
                     qrScannerRef.current.stop();
@@ -47,14 +48,6 @@ const ScanQR = () => {
                 console.log("[Step 6] Starting QR scanner...");
                 qrScannerRef.current.start();
 
-                // Force scanning frames if needed
-                setInterval(() => {
-                    if (qrScannerRef.current) {
-                        console.log("[DEBUG] Manually requesting a scan...");
-                        qrScannerRef.current.scanFrame().catch(err => console.warn("[DEBUG] No QR code detected yet"));
-                    }
-                }, 1000); // Scan every second
-                
                 setIsOverlayVisible(true); // Ensure overlay is visible
 
                 // Ensure scanner is running after a delay
