@@ -21,6 +21,7 @@ const Scan = () => {
   const [isDarkMode, setIsDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
+  const [hideOverlay, setHideOverlay] = useState(false); // New state to control overlay visibility
 
   const isProcessingRef = useRef(false);
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ const Scan = () => {
     });
   };
 
-  // QR Camera effect (unchanged)
+  // QR Camera effect
   useEffect(() => {
     if (!isFaceMode) {
       console.log("[useEffect] Starting QR camera (back camera)...");
@@ -61,7 +62,10 @@ const Scan = () => {
             qrScannerRef.current = new QrScanner(
               qrVideoRef.current,
               (result) => handleScan(result.data || result),
-              { highlightScanRegion: true, highlightCodeOutline: true }
+              {
+                highlightScanRegion: !hideOverlay, // Disable overlay when hideOverlay is true
+                highlightCodeOutline: !hideOverlay, // Disable outline when hideOverlay is true
+              }
             );
 
             await qrVideoRef.current.play().catch((err) =>
@@ -90,7 +94,7 @@ const Scan = () => {
         if (qrVideoRef.current) qrVideoRef.current.srcObject = null;
       };
     }
-  }, [forceRender, isFaceMode]);
+  }, [forceRender, isFaceMode, hideOverlay]); // Add hideOverlay as dependency
 
   // Face Camera effect (unchanged)
   useEffect(() => {
@@ -177,7 +181,7 @@ const Scan = () => {
     if (faceVideoRef.current) faceVideoRef.current.srcObject = null;
   };
 
-  // Handle Scan function (unchanged)
+  // Handle Scan function
   const handleScan = async (result) => {
     if (!result || isProcessingRef.current) return;
     isProcessingRef.current = true;
@@ -243,6 +247,7 @@ const Scan = () => {
             setFaceImageUploadUrl(response.data.face_image_upload_url);
             setIsFaceMode(true);
           } else {
+            setHideOverlay(true); // Hide overlay when face recognition is not enabled
             stopCamera();
             setTimeout(() => {
               window.location.replace("/student/dashboard?refresh=" + Date.now());
@@ -281,6 +286,7 @@ const Scan = () => {
                 setFaceImageUploadUrl(retryResponse.data.face_image_upload_url);
                 setIsFaceMode(true);
               } else {
+                setHideOverlay(true); // Hide overlay when face recognition is not enabled (retry case)
                 stopCamera();
                 setTimeout(() => {
                   window.location.replace("/student/dashboard?refresh=" + Date.now());
@@ -307,7 +313,7 @@ const Scan = () => {
     }
   };
 
-  // Handle Capture Photo function (unchanged)
+  // Handle Capture Photo function
   const handleCapturePhoto = async () => {
     if (!faceImageUploadUrl || !faceVideoRef.current) {
       toast.error("Capture failed: Missing setup.");
@@ -355,6 +361,7 @@ const Scan = () => {
       if (response.status === 200) {
         toast.success("Face image uploaded successfully!");
         setIsImageUploaded(true);
+        setHideOverlay(true); // Hide overlay after successful image upload
 
         stopCamera();
         setTimeout(() => {
@@ -396,7 +403,7 @@ const Scan = () => {
             <div className="flex justify-center w-full">
               <video
                 ref={faceVideoRef}
-                style={{ transform: "scaleX(1)", maxWidth: "100%", height: "auto" }}
+                style={{ transform: "scaleX(-1)", maxWidth: "100%", height: "auto" }}
                 playsInline
               />
             </div>
