@@ -43,7 +43,7 @@ const Scan = () => {
     });
   };
 
-
+  // QR Camera effect (unchanged)
   useEffect(() => {
     if (!isFaceMode) {
       console.log("[useEffect] Starting QR camera (back camera)...");
@@ -92,12 +92,10 @@ const Scan = () => {
     }
   }, [forceRender, isFaceMode]);
 
-
+  // Face Camera effect (unchanged)
   useEffect(() => {
     if (isFaceMode) {
       console.log("[useEffect faceMode] Switching to front camera...");
-  
-      // Function to stop the current camera stream before switching
       const stopCurrentStream = () => {
         if (cameraStreamRef.current) {
           console.log("[useEffect faceMode] Stopping current camera stream...");
@@ -107,45 +105,41 @@ const Scan = () => {
         if (qrVideoRef.current) qrVideoRef.current.srcObject = null;
         if (faceVideoRef.current) faceVideoRef.current.srcObject = null;
       };
-  
-      // Ensure the previous camera stream is stopped before switching
+
       stopCurrentStream();
-  
+
       const getFrontCameraId = async () => {
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
           const videoDevices = devices.filter((device) => device.kind === "videoinput");
-  
           console.log("Available video devices:", videoDevices);
-  
           const frontCamera = videoDevices.find((device) =>
             device.label.toLowerCase().includes("front")
           );
-  
           return frontCamera ? frontCamera.deviceId : null;
         } catch (error) {
           console.error("Error fetching camera devices:", error);
           return null;
         }
       };
-  
+
       const startFrontCamera = async () => {
         try {
           const frontCameraId = await getFrontCameraId();
           if (!frontCameraId) {
             throw new Error("No front camera found.");
           }
-  
+
           console.log("[useEffect faceMode] Waiting before switching cameras...");
-          await new Promise((resolve) => setTimeout(resolve, 500)); // Small delay
-  
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
           const frontStream = await navigator.mediaDevices.getUserMedia({
             video: { deviceId: { exact: frontCameraId } },
           });
-  
+
           console.log("[useEffect faceMode] Got front camera stream:", frontStream.active);
           cameraStreamRef.current = frontStream;
-  
+
           if (faceVideoRef.current) {
             faceVideoRef.current.srcObject = frontStream;
             await faceVideoRef.current.play().catch((err) =>
@@ -157,18 +151,17 @@ const Scan = () => {
           toast.error("Unable to access front camera. Check permissions.");
         }
       };
-  
+
       startFrontCamera();
-  
+
       return () => {
         console.log("[useEffect faceMode cleanup] Stopping front camera...");
         stopCurrentStream();
       };
     }
   }, [isFaceMode]);
-    
 
-
+  // Stop Camera function (unchanged)
   const stopCamera = () => {
     console.log("[stopCamera] Stopping camera...");
     if (qrScannerRef.current) {
@@ -184,6 +177,7 @@ const Scan = () => {
     if (faceVideoRef.current) faceVideoRef.current.srcObject = null;
   };
 
+  // Handle Scan function (unchanged)
   const handleScan = async (result) => {
     if (!result || isProcessingRef.current) return;
     isProcessingRef.current = true;
@@ -247,7 +241,6 @@ const Scan = () => {
           toast.success("Attendance marked successfully!");
           if (response.data.session_id?.face_recognition_enabled) {
             setFaceImageUploadUrl(response.data.face_image_upload_url);
-            // Switch to face mode (which will request the front camera).
             setIsFaceMode(true);
           } else {
             stopCamera();
@@ -314,6 +307,7 @@ const Scan = () => {
     }
   };
 
+  // Handle Capture Photo function (unchanged)
   const handleCapturePhoto = async () => {
     if (!faceImageUploadUrl || !faceVideoRef.current) {
       toast.error("Capture failed: Missing setup.");
@@ -343,7 +337,6 @@ const Scan = () => {
     }
 
     try {
-      // Draw the video frame to a canvas:
       const video = faceVideoRef.current;
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
@@ -351,13 +344,11 @@ const Scan = () => {
       const context = canvas.getContext("2d");
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Convert canvas to a JPEG blob:
       const blob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", 0.9)
       );
       console.log("[handleCapturePhoto] Blob created:", blob.size);
 
-      // Upload the blob to the faceImageUploadUrl:
       const response = await axios.put(faceImageUploadUrl, blob, {
         headers: { "Content-Type": "image/jpeg" },
       });
@@ -365,7 +356,6 @@ const Scan = () => {
         toast.success("Face image uploaded successfully!");
         setIsImageUploaded(true);
 
-        // Stop camera and navigate away after a short delay:
         stopCamera();
         setTimeout(() => {
           window.location.replace("/student/dashboard?refresh=" + Date.now());
@@ -380,7 +370,7 @@ const Scan = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"} flex flex-col`}>
       {/* Mobile Dashboard Header */}
       <div
         className="bg-yellow-400 h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
@@ -395,14 +385,9 @@ const Scan = () => {
         />
       </div>
 
-      {/*
-        Instead of "mt-24", we simply reduce the margin to bring the container up.
-        The class below uses "mt-6" for a smaller gap.
-        Adjust "mt-6" to "mt-4" or even "mt-2" to move it further up.
-      */}
-      <main className="w-full mx-auto bg-gray-200 rounded-xl shadow-sm p-6 pb-12 mt-0">
+      <main className={`w-full mx-auto ${isDarkMode ? "bg-[#333]" : "bg-gray-200"} rounded-xl shadow-sm p-6 pb-12 mt-0`}>
         <div className="flex flex-col items-center">
-          <p className="mb-4 text-sm text-gray-600">
+          <p className={`mb-4 text-sm ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
             {isFaceMode
               ? "Position your face in the frame and capture the photo."
               : "Point your camera at the QR code to mark attendance."}
@@ -427,9 +412,8 @@ const Scan = () => {
         </div>
       </main>
 
-      
       {isFaceMode && !isImageUploaded && (
-        <div className="fixed bottom-32 left-1/2 transform -translate-x-1/2 ">
+        <div className="fixed bottom-32 left-1/2 transform -translate-x-1/2">
           <button
             onClick={handleCapturePhoto}
             disabled={isCapturing}
@@ -441,7 +425,7 @@ const Scan = () => {
       )}
 
       <footer className="w-full mx-auto mt-6 text-center">
-        <p className="text-xs text-gray-500">
+        <p className={`text-xs ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
           Ensure your camera is enabled and has sufficient lighting.
         </p>
       </footer>
