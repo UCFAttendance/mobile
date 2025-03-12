@@ -447,10 +447,10 @@ const Scan = () => {
           <button
             onClick={handleCapturePhoto}
             disabled={isCapturing}
-            className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center"
+            className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg"
             style={{ overflowY: "hidden" }}
           >
-            {isCapturing ? "" : <span role="img" aria-label="capture"></span>}
+            {isCapturing ? "..." : <span role="img" aria-label="capture">📷</span>}
           </button>
         </div>
       )}
