@@ -5,47 +5,18 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const Scan = () => {
-  /*************************************************************************
-   * 1) Debug Logging System
-   *    - We store all console messages in `debugRef`.
-   *    - We periodically call `setDebugTick(...)` so new logs show in the UI.
-   *************************************************************************/
-  const debugRef = useRef([]);
-  const [debugTick, setDebugTick] = useState(0);
+  console.log("[Render] <Scan />");
 
-  // A small timer updates debug messages every 1.5s without infinite re-renders:
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDebugTick((prev) => prev + 1);
-    }, 1500);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Our custom debug function replaces console.log calls:
-  const debugLog = (...args) => {
-    // Use normal console.log
-    console.log(...args);
-    // Store text version in debugRef
-    debugRef.current.push(args.map((x) => String(x)).join(" "));
-  };
-
-  /*************************************************************************
-   * 2) Normal State & Refs
-   *************************************************************************/
-  debugLog("[Render] <Scan /> (Begin)");
   const qrVideoRef = useRef(null);
   const faceVideoRef = useRef(null);
   const qrScannerRef = useRef(null);
+  // Use a ref for the current active stream instead of state.
   const cameraStreamRef = useRef(null);
-
   const [isFaceMode, setIsFaceMode] = useState(false);
   const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isImageUploaded, setIsImageUploaded] = useState(false);
-
-  // Removed the forced second render state/logic to prevent issues on Vercel
-  // const [forceRender, setForceRender] = useState(false);
-
+  const [forceRender, setForceRender] = useState(false);
   const [apiPayload, setApiPayload] = useState("");
   const [apiError, setApiError] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(
@@ -56,17 +27,14 @@ const Scan = () => {
   const navigate = useNavigate();
   const BASE_URL = process.env.REACT_APP_BASE_URL;
 
-  // (Removed) the forced second render effect
-  // useEffect(() => {
-  //   debugLog("[useEffect] Forcing second render...");
-  //   setForceRender((prev) => !prev);
-  // }, []);
+  // Force a second render on mount.
+  useEffect(() => {
+    console.log("[useEffect] Forcing second render...");
+    setForceRender((prev) => !prev);
+  }, []);
 
-  /*************************************************************************
-   * 3) Helper to get device location
-   *************************************************************************/
+  // Helper to get device location.
   const getLocation = () => {
-    debugLog("[getLocation] Attempting to get user location...");
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error("Geolocation is not supported by this browser."));
@@ -76,18 +44,16 @@ const Scan = () => {
     });
   };
 
-  /*************************************************************************
-   * 4) Start QR scanning (back camera) if not in face mode
-   *************************************************************************/
+  // Start QR scanning using the back camera (only if not in face mode).
   useEffect(() => {
     if (!isFaceMode) {
-      debugLog("[useEffect] Starting QR camera (back camera)...");
+      console.log("[useEffect] Starting QR camera (back camera)...");
       const startQrCamera = async () => {
         try {
           const cameraStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: { ideal: "environment" } },
           });
-          debugLog("[useEffect] Got camera stream:", cameraStream.active);
+          console.log("[useEffect] Got camera stream:", cameraStream.active);
           cameraStreamRef.current = cameraStream;
 
           if (qrVideoRef.current) {
@@ -100,19 +66,19 @@ const Scan = () => {
             );
 
             await qrVideoRef.current.play().catch((err) =>
-              debugLog("[useEffect] Error playing QR video:", err)
+              console.error("[useEffect] Error playing QR video:", err)
             );
             qrScannerRef.current.start();
           }
         } catch (error) {
-          debugLog("[useEffect] Error accessing back camera:", error);
+          console.error("[useEffect] Error accessing back camera:", error);
           toast.error("Unable to access camera. Check permissions.");
         }
       };
       startQrCamera();
 
       return () => {
-        debugLog("[useEffect cleanup] Cleaning up QR camera...");
+        console.log("[useEffect cleanup] Cleaning up QR camera...");
         if (qrScannerRef.current) {
           qrScannerRef.current.stop();
           qrScannerRef.current.destroy();
@@ -125,14 +91,12 @@ const Scan = () => {
         if (qrVideoRef.current) qrVideoRef.current.srcObject = null;
       };
     }
-  }, [isFaceMode]);
+  }, [forceRender, isFaceMode]);
 
-  /*************************************************************************
-   * 5) Front camera effect for face mode
-   *************************************************************************/
+  // When face mode is activated, switch to the front camera.
   useEffect(() => {
     if (isFaceMode) {
-      debugLog("[useEffect faceMode] Switching to front camera...");
+      console.log("[useEffect faceMode] Switching to front camera...");
 
       // Stop any existing QR scanner.
       if (qrScannerRef.current) {
@@ -151,24 +115,27 @@ const Scan = () => {
           const frontStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user" },
           });
-          debugLog("[useEffect faceMode] Got front camera stream:", frontStream.active);
+          console.log(
+            "[useEffect faceMode] Got front camera stream:",
+            frontStream.active
+          );
           cameraStreamRef.current = frontStream;
 
           if (faceVideoRef.current) {
             faceVideoRef.current.srcObject = frontStream;
             await faceVideoRef.current.play().catch((err) =>
-              debugLog("[useEffect faceMode] Error playing face video:", err)
+              console.error("[useEffect faceMode] Error playing face video:", err)
             );
           }
         } catch (error) {
-          debugLog("[useEffect faceMode] Error accessing front camera:", error);
+          console.error("[useEffect faceMode] Error accessing front camera:", error);
           toast.error("Unable to access front camera. Check permissions.");
         }
       };
       startFrontCamera();
 
       return () => {
-        debugLog("[useEffect faceMode cleanup] Stopping front camera...");
+        console.log("[useEffect faceMode cleanup] Stopping front camera...");
         if (cameraStreamRef.current) {
           cameraStreamRef.current.getTracks().forEach((track) => track.stop());
           cameraStreamRef.current = null;
@@ -180,11 +147,9 @@ const Scan = () => {
     }
   }, [isFaceMode]);
 
-  /*************************************************************************
-   * 6) Utility to stop any active camera stream
-   *************************************************************************/
+  // Utility to stop any active camera stream.
   const stopCamera = () => {
-    debugLog("[stopCamera] Stopping camera...");
+    console.log("[stopCamera] Stopping camera...");
     if (qrScannerRef.current) {
       qrScannerRef.current.stop();
       qrScannerRef.current.destroy();
@@ -198,19 +163,16 @@ const Scan = () => {
     if (faceVideoRef.current) faceVideoRef.current.srcObject = null;
   };
 
-  /*************************************************************************
-   * 7) handleScan logic
-   *************************************************************************/
   const handleScan = async (result) => {
     if (!result || isProcessingRef.current) return;
-    debugLog("[handleScan] Raw QR scan result:", result);
     isProcessingRef.current = true;
+    console.log("[handleScan] Raw QR scan result:", result);
 
     let scannedData;
     try {
       scannedData = JSON.parse(result);
     } catch (error) {
-      debugLog("[handleScan] Error parsing QR code data:", error);
+      console.error("[handleScan] Error parsing QR code data:", error);
       toast.error("Invalid QR code format. Please try again.");
       isProcessingRef.current = false;
       return;
@@ -218,7 +180,7 @@ const Scan = () => {
 
     const { token, locationEnabled = false } = scannedData;
     if (!token) {
-      debugLog("[handleScan] No token found in QR data.");
+      console.error("[handleScan] No token found in QR data.");
       toast.error("Invalid QR code. Please try again.");
       isProcessingRef.current = false;
       return;
@@ -236,16 +198,16 @@ const Scan = () => {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           };
-          debugLog("Student's location:", locationData);
+          console.log("Student's location:", locationData);
         } catch (error) {
-          debugLog("Error getting location:", error);
+          console.error("Error getting location:", error);
           toast.error("Unable to get location. Proceeding without it.");
         }
       }
 
       const payload = JSON.stringify({ token, ...locationData });
-      debugLog("[handleScan] Sending request with:", { token, ...locationData });
-      debugLog("[DEBUG] API request payload:", payload);
+      console.log("[handleScan] Sending request with:", { token, ...locationData });
+      console.log("[DEBUG] API request payload:", payload);
       setApiPayload(payload);
       setApiError("");
 
@@ -259,7 +221,7 @@ const Scan = () => {
 
       try {
         const response = await axiosInstance.post("/api/v1/attendance/", payload);
-        debugLog("[handleScan] API response:", response.data);
+        console.log("[handleScan] API response:", response.data);
         if (response.data?.id >= 0) {
           toast.success("Attendance marked successfully!");
           if (response.data.session_id?.face_recognition_enabled) {
@@ -274,7 +236,7 @@ const Scan = () => {
           }
         }
       } catch (error) {
-        debugLog("[handleScan] API Error:", error.response?.data || error.message);
+        console.error("[handleScan] API Error:", error.response?.data || error.message);
         setApiError(JSON.stringify(error.response?.data || error.message));
         if (error.response?.status === 401) {
           const refreshToken = localStorage.getItem("refreshToken");
@@ -288,7 +250,6 @@ const Scan = () => {
             );
             accessToken = refreshResponse.data.access;
             localStorage.setItem("accessToken", accessToken);
-
             const retryResponse = await axios.post(
               `${BASE_URL}/api/v1/attendance/`,
               payload,
@@ -299,7 +260,7 @@ const Scan = () => {
                 },
               }
             );
-            debugLog("[handleScan] Retry API response:", retryResponse.data);
+            console.log("[handleScan] Retry API response:", retryResponse.data);
             if (retryResponse.data?.id >= 0) {
               toast.success("Attendance marked successfully!");
               if (retryResponse.data.session_id?.face_recognition_enabled) {
@@ -313,7 +274,7 @@ const Scan = () => {
               }
             }
           } catch (refreshError) {
-            debugLog("Error refreshing token:", refreshError);
+            console.error("Error refreshing token:", refreshError);
             throw new Error("Unable to refresh token. Please log in again.");
           }
         } else {
@@ -321,7 +282,7 @@ const Scan = () => {
         }
       }
     } catch (error) {
-      debugLog("[handleScan] API Error:", error.response?.data || error.message);
+      console.error("[handleScan] API Error:", error.response?.data || error.message);
       toast.error(
         error.response?.data?.detail || error.message || "Failed to mark attendance."
       );
@@ -332,17 +293,14 @@ const Scan = () => {
     }
   };
 
-  /*************************************************************************
-   * 8) handleCapturePhoto logic
-   *************************************************************************/
   const handleCapturePhoto = async () => {
-    debugLog("[handleCapturePhoto] Entered...");
     if (!faceImageUploadUrl || !faceVideoRef.current) {
       toast.error("Capture failed: Missing setup.");
       return;
     }
-    debugLog("  srcObject:", faceVideoRef.current.srcObject);
-    debugLog("  readyState:", faceVideoRef.current.readyState);
+    console.log("[handleCapturePhoto] Checking video state...");
+    console.log("  srcObject:", faceVideoRef.current.srcObject);
+    console.log("  readyState:", faceVideoRef.current.readyState);
 
     if (!faceVideoRef.current.srcObject || faceVideoRef.current.readyState === 0) {
       toast.error("No active video stream. Please try again.");
@@ -353,7 +311,7 @@ const Scan = () => {
     const maxAttempts = 5;
     let attempts = 0;
     while (attempts < maxAttempts && faceVideoRef.current.readyState < 2) {
-      debugLog("[handleCapturePhoto] Video not ready, waiting...");
+      console.log("[handleCapturePhoto] Video not ready, waiting...");
       await new Promise((resolve) => setTimeout(resolve, 500));
       attempts++;
     }
@@ -376,34 +334,30 @@ const Scan = () => {
       const blob = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", 0.9)
       );
-      debugLog("[handleCapturePhoto] Blob created:", blob.size);
+      console.log("[handleCapturePhoto] Blob created:", blob.size);
 
       // Upload the blob to the faceImageUploadUrl:
       const response = await axios.put(faceImageUploadUrl, blob, {
         headers: { "Content-Type": "image/jpeg" },
       });
-      debugLog("[handleCapturePhoto] Upload response:", response);
-
       if (response.status === 200) {
         toast.success("Face image uploaded successfully!");
         setIsImageUploaded(true);
 
+        // Stop camera and navigate away after a short delay:
         stopCamera();
         setTimeout(() => {
           window.location.replace("/student/dashboard?refresh=" + Date.now());
         }, 3000);
       }
     } catch (error) {
-      debugLog("[handleCapturePhoto] Error:", error);
+      console.error("[handleCapturePhoto] Error:", error);
       toast.error("Failed to capture or upload photo.");
     } finally {
       setIsCapturing(false);
     }
   };
 
-  /*************************************************************************
-   * 9) Render
-   *************************************************************************/
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Dashboard Header */}
@@ -420,6 +374,11 @@ const Scan = () => {
         />
       </div>
 
+      {/*
+        Instead of "mt-24", we simply reduce the margin to bring the container up.
+        The class below uses "mt-6" for a smaller gap.
+        Adjust "mt-6" to "mt-4" or even "mt-2" to move it further up.
+      */}
       <main className="w-full mx-auto bg-gray-200 rounded-xl shadow-sm p-6 pb-12 mt-0">
         <div className="flex flex-col items-center">
           <p className="mb-4 text-sm text-gray-600">
@@ -447,9 +406,12 @@ const Scan = () => {
         </div>
       </main>
 
-      {/* Button for capturing face photo */}
+      {/*
+        Move the button up by increasing "bottom-10" to "bottom-20", etc.
+        Here we use "bottom-20" to place the button higher.
+      */}
       {isFaceMode && !isImageUploaded && (
-        <div className="fixed bottom-32 left-1/2 transform -translate-x-1/2 z-50">
+        <div className="fixed bottom-32 left-1/2 transform -translate-x-1/2 ">
           <button
             onClick={handleCapturePhoto}
             disabled={isCapturing}
@@ -465,16 +427,6 @@ const Scan = () => {
           Ensure your camera is enabled and has sufficient lighting.
         </p>
       </footer>
-
-      {/************************************************************************
-       * 10) Debug log output (prints all messages to the screen)
-       ************************************************************************/}
-      <div className="w-full bg-black text-white p-2 mt-4 text-xs">
-        <p className="font-bold">Debug Logs:</p>
-        {debugRef.current.map((msg, idx) => (
-          <div key={idx}>{msg}</div>
-        ))}
-      </div>
     </div>
   );
 };
