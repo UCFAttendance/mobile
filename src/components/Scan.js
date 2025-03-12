@@ -96,51 +96,56 @@ const Scan = () => {
   useEffect(() => {
     if (isFaceMode) {
       console.log("[useEffect faceMode] Switching to front camera...");
-
-      // Stop any existing QR scanner.
-      if (qrScannerRef.current) {
-        qrScannerRef.current.stop();
-        qrScannerRef.current.destroy();
-        qrScannerRef.current = null;
-      }
-      // Stop old camera stream if it's still running.
-      if (cameraStreamRef.current) {
-        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
-        cameraStreamRef.current = null;
-      }
-
+  
+      // Function to stop the current camera stream before switching
+      const stopCurrentStream = () => {
+        if (cameraStreamRef.current) {
+          console.log("[useEffect faceMode] Stopping current camera stream...");
+          cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+          cameraStreamRef.current = null;
+        }
+        if (qrVideoRef.current) qrVideoRef.current.srcObject = null;
+        if (faceVideoRef.current) faceVideoRef.current.srcObject = null;
+      };
+  
+      // Ensure the previous camera stream is stopped before switching
+      stopCurrentStream();
+  
       const getFrontCameraId = async () => {
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
           const videoDevices = devices.filter((device) => device.kind === "videoinput");
-      
+  
           console.log("Available video devices:", videoDevices);
-      
+  
           const frontCamera = videoDevices.find((device) =>
             device.label.toLowerCase().includes("front")
           );
-      
+  
           return frontCamera ? frontCamera.deviceId : null;
         } catch (error) {
           console.error("Error fetching camera devices:", error);
           return null;
         }
       };
-      
+  
       const startFrontCamera = async () => {
         try {
           const frontCameraId = await getFrontCameraId();
           if (!frontCameraId) {
             throw new Error("No front camera found.");
           }
-      
+  
+          console.log("[useEffect faceMode] Waiting before switching cameras...");
+          await new Promise((resolve) => setTimeout(resolve, 500)); // Small delay
+  
           const frontStream = await navigator.mediaDevices.getUserMedia({
             video: { deviceId: { exact: frontCameraId } },
           });
-      
+  
           console.log("[useEffect faceMode] Got front camera stream:", frontStream.active);
           cameraStreamRef.current = frontStream;
-      
+  
           if (faceVideoRef.current) {
             faceVideoRef.current.srcObject = frontStream;
             await faceVideoRef.current.play().catch((err) =>
@@ -152,20 +157,16 @@ const Scan = () => {
           toast.error("Unable to access front camera. Check permissions.");
         }
       };
+  
       startFrontCamera();
-
+  
       return () => {
         console.log("[useEffect faceMode cleanup] Stopping front camera...");
-        if (cameraStreamRef.current) {
-          cameraStreamRef.current.getTracks().forEach((track) => track.stop());
-          cameraStreamRef.current = null;
-        }
-        if (faceVideoRef.current) {
-          faceVideoRef.current.srcObject = null;
-        }
+        stopCurrentStream();
       };
     }
   }, [isFaceMode]);
+    
 
 
   const stopCamera = () => {
