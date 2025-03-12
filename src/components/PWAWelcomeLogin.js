@@ -216,10 +216,32 @@ const PWAWelcomeLogin = () => {
             borderRadius: "6px",
             cursor: loading ? "not-allowed" : "pointer",
             marginTop: "10px",
+            marginBottom: "20px",
           }}
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>
+
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "10px",
+            fontSize: isMobile ? "14px" : "16px",
+            color: darkMode ? "#fff" : "#333",
+          }}
+        >
+          Don't have an account?{" "}
+          <Link
+            to="/signup"
+            style={{
+              color: "#0066cc",
+              textDecoration: "none",
+              fontWeight: "500",
+            }}
+          >
+            Sign up
+          </Link>
+        </div>
       </form>
 
       {error && (

@@ -23,6 +23,7 @@ import AccountSettings from "./components/AccountSettings";
 import ChangePassword from "./components/ChangePassword";
 import Location from "./components/Location";
 import CameraPermissions from "./components/CameraPermissions";
+import SignUp from './components/SignUp';
 
 const App = () => {
   // Load dark mode preference from localStorage
@@ -174,6 +175,8 @@ const AppContent = ({ darkMode, setDarkMode, locationEnabled, setLocationEnabled
               />
             } 
           />
+
+          <Route path="/signup" element={<SignUp />} />
         </Routes>
       </div>
 
