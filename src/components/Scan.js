@@ -10,7 +10,6 @@ const Scan = () => {
   const qrVideoRef = useRef(null);
   const faceVideoRef = useRef(null);
   const qrScannerRef = useRef(null);
-  // Use a ref for the current active stream instead of state.
   const cameraStreamRef = useRef(null);
   const [isFaceMode, setIsFaceMode] = useState(false);
   const [faceImageUploadUrl, setFaceImageUploadUrl] = useState(null);
@@ -44,7 +43,7 @@ const Scan = () => {
     });
   };
 
-  // Start QR scanning using the back camera (only if not in face mode).
+
   useEffect(() => {
     if (!isFaceMode) {
       console.log("[useEffect] Starting QR camera (back camera)...");
@@ -93,7 +92,7 @@ const Scan = () => {
     }
   }, [forceRender, isFaceMode]);
 
-  // When face mode is activated, switch to the front camera.
+
   useEffect(() => {
     if (isFaceMode) {
       console.log("[useEffect faceMode] Switching to front camera...");
@@ -110,17 +109,38 @@ const Scan = () => {
         cameraStreamRef.current = null;
       }
 
+      const getFrontCameraId = async () => {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter((device) => device.kind === "videoinput");
+      
+          console.log("Available video devices:", videoDevices);
+      
+          const frontCamera = videoDevices.find((device) =>
+            device.label.toLowerCase().includes("front")
+          );
+      
+          return frontCamera ? frontCamera.deviceId : null;
+        } catch (error) {
+          console.error("Error fetching camera devices:", error);
+          return null;
+        }
+      };
+      
       const startFrontCamera = async () => {
         try {
+          const frontCameraId = await getFrontCameraId();
+          if (!frontCameraId) {
+            throw new Error("No front camera found.");
+          }
+      
           const frontStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: "user" } },
+            video: { deviceId: { exact: frontCameraId } },
           });
-          console.log(
-            "[useEffect faceMode] Got front camera stream:",
-            frontStream.active
-          );
+      
+          console.log("[useEffect faceMode] Got front camera stream:", frontStream.active);
           cameraStreamRef.current = frontStream;
-
+      
           if (faceVideoRef.current) {
             faceVideoRef.current.srcObject = frontStream;
             await faceVideoRef.current.play().catch((err) =>
@@ -147,7 +167,7 @@ const Scan = () => {
     }
   }, [isFaceMode]);
 
-  // Utility to stop any active camera stream.
+
   const stopCamera = () => {
     console.log("[stopCamera] Stopping camera...");
     if (qrScannerRef.current) {
@@ -406,10 +426,7 @@ const Scan = () => {
         </div>
       </main>
 
-      {/*
-        Move the button up by increasing "bottom-10" to "bottom-20", etc.
-        Here we use "bottom-20" to place the button higher.
-      */}
+      
       {isFaceMode && !isImageUploaded && (
         <div className="fixed bottom-32 left-1/2 transform -translate-x-1/2 ">
           <button
@@ -417,7 +434,7 @@ const Scan = () => {
             disabled={isCapturing}
             className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg"
           >
-            {isCapturing ? "..." : <span role="img" aria-label="capture">📷</span>}
+            {isCapturing ? "" : <span role="img" aria-label="capture"></span>}
           </button>
         </div>
       )}
