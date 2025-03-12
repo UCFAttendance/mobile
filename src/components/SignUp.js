@@ -91,7 +91,7 @@ const SignUp = () => {
       }
 
       // Registration successful
-      navigate("/login");
+      navigate("/");
     } catch (error) {
       setError(error.message);
     } finally {
@@ -309,7 +309,7 @@ const SignUp = () => {
         >
           Already have an account?{" "}
           <Link
-            to="/login"
+            to="/"
             style={{
               color: "#0066cc",
               textDecoration: "none",
