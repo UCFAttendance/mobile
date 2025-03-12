@@ -5,6 +5,19 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const Scan = () => {
+  // Inline style block to hide scrollbar while allowing scroll.
+  // Alternatively, place this in App.css or a dedicated CSS file.
+  const hideScrollbarCss = `
+    .hide-scrollbar {
+      overflow-y: auto;           /* Allow vertical scrolling */
+      -ms-overflow-style: none;   /* IE 10+ */
+      scrollbar-width: none;      /* Firefox */
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;             /* Chrome/Safari */
+    }
+  `;
+
   console.log("[Render] <Scan />");
 
   const qrVideoRef = useRef(null);
@@ -20,7 +33,7 @@ const Scan = () => {
   const [apiPayload, setApiPayload] = useState("");
   const [apiError, setApiError] = useState("");
 
-  // Same dark mode check as student dashboard:
+  // Same dark mode check as StudentDashboard
   const [isDarkMode, setIsDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
@@ -362,108 +375,105 @@ const Scan = () => {
   };
 
   return (
-    // Overall page container, matching StudentDashboard logic:
-    <div
-      className={`min-h-screen overflow-y-hidden ${
-        isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
-      }`}
-      style={{ overflowY: "hidden" }}
-    >
-      {/* Top header (yellow bar) - unchanged, but we handle border color for dark mode */}
+    <>
+      {/* A small style block for a "hide-scrollbar" class. */}
+      <style>{hideScrollbarCss}</style>
+
+      {/*
+        We replace "overflow-y-hidden" with "hide-scrollbar" + "overflow-y-auto"
+        so the user can scroll to the top, but the scrollbar remains hidden.
+      */}
       <div
-        className="h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
+        className={`min-h-screen hide-scrollbar ${
+          isDarkMode ? "bg-[#141414] text-white" : "bg-gray-50 text-gray-900"
+        }`}
         style={{
-          borderBottomColor: isDarkMode ? "#333" : "#ddd",
-          backgroundColor: "#ffce00", // same "bg-yellow-400"
-          overflowY: "hidden",
+          // Remove "overflowY: 'hidden'"
+          // Use "overflowY: 'auto'" so user can scroll.
+          overflowY: "auto",
+          height: "100vh",
         }}
       >
-        <img
-          src="/images/team-logo.png"
-          alt="Team Logo"
-          className="w-[60px] h-auto pl-2 rounded-md"
-          style={{ overflowY: "hidden" }}
-        />
-      </div>
-
-      {/* Main 'box' that was gray -- now uses the same logic as "bottom half of widgets" */}
-      <main
-        className={`w-full mx-auto rounded-xl shadow-sm p-6 pb-12 mt-0 ${
-          isDarkMode ? "bg-[#333] text-white" : "bg-white text-black"
-        } overflow-y-hidden`}
-        style={{ overflowY: "hidden" }}
-      >
-        <div className="flex flex-col items-center" style={{ overflowY: "hidden" }}>
-          <p
-            className="mb-4 text-sm"
-            style={{ overflowY: "hidden" }}
-          >
-            {isFaceMode
-              ? "Position your face in the frame and capture the photo."
-              : "Point your camera at the QR code to mark attendance."}
-          </p>
-          {isFaceMode ? (
-            <div
-              className="flex justify-center w-full overflow-y-hidden"
-              style={{ overflowY: "hidden" }}
-            >
-              <video
-                ref={faceVideoRef}
-                style={{
-                  transform: "scaleX(1)",
-                  maxWidth: "100%",
-                  height: "auto",
-                  overflowY: "hidden",
-                }}
-                playsInline
-              />
-            </div>
-          ) : (
-            <div
-              className="flex justify-center w-full overflow-y-hidden"
-              style={{ overflowY: "hidden" }}
-            >
-              <video
-                ref={qrVideoRef}
-                style={{
-                  transform: "scaleX(1)",
-                  maxWidth: "100%",
-                  height: "auto",
-                  overflowY: "hidden",
-                }}
-                playsInline
-              />
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Keep the capture button exactly as before, but fix it above any overflow */}
-      {isFaceMode && !isImageUploaded && (
+        {/* Top header (yellow bar) */}
         <div
-          className="fixed bottom-32 left-1/2 transform -translate-x-1/2 z-50"
-          style={{ overflowY: "hidden" }}
+          className="h-[60px] flex items-center justify-between w-full sticky top-0 z-50 border-b-2 border-gray-300"
+          style={{
+            borderBottomColor: isDarkMode ? "#333" : "#ddd",
+            backgroundColor: "#ffce00", // same "bg-yellow-400"
+          }}
         >
-          <button
-            onClick={handleCapturePhoto}
-            disabled={isCapturing}
-            className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center"
-            style={{ overflowY: "hidden" }}
-          >
-            {isCapturing ? "" : <span role="img" aria-label="capture"></span>}
-          </button>
+          <img
+            src="/images/team-logo.png"
+            alt="Team Logo"
+            className="w-[60px] h-auto pl-2 rounded-md"
+          />
         </div>
-      )}
 
-      <footer className="w-full mx-auto mt-6 text-center overflow-y-hidden">
-        <p
-          className="text-xs"
-          style={{ overflowY: "hidden" }}
+        {/* Gray/white box -- now a "hide-scrollbar" so user can scroll if needed */}
+        <main
+          className={`w-full mx-auto rounded-xl shadow-sm p-6 pb-12 mt-0 hide-scrollbar ${
+            isDarkMode ? "bg-[#333] text-white" : "bg-white text-black"
+          }`}
+          style={{
+            overflowY: "auto", // allow scrolling inside if needed
+          }}
         >
-          Ensure your camera is enabled and has sufficient lighting.
-        </p>
-      </footer>
-    </div>
+          <div className="flex flex-col items-center">
+            <p className="mb-4 text-sm">
+              {isFaceMode
+                ? "Position your face in the frame and capture the photo."
+                : "Point your camera at the QR code to mark attendance."}
+            </p>
+            {isFaceMode ? (
+              <div className="flex justify-center w-full hide-scrollbar">
+                <video
+                  ref={faceVideoRef}
+                  style={{
+                    transform: "scaleX(1)",
+                    maxWidth: "100%",
+                    height: "auto",
+                  }}
+                  playsInline
+                />
+              </div>
+            ) : (
+              <div className="flex justify-center w-full hide-scrollbar">
+                <video
+                  ref={qrVideoRef}
+                  style={{
+                    transform: "scaleX(1)",
+                    maxWidth: "100%",
+                    height: "auto",
+                  }}
+                  playsInline
+                />
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Capture button remains fixed at bottom */}
+        {isFaceMode && !isImageUploaded && (
+          <div
+            className="fixed bottom-32 left-1/2 transform -translate-x-1/2 z-50"
+          >
+            <button
+              onClick={handleCapturePhoto}
+              disabled={isCapturing}
+              className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg"
+            >
+              {isCapturing ? "..." : <span role="img" aria-label="capture">📷</span>}
+            </button>
+          </div>
+        )}
+
+        <footer className="w-full mx-auto mt-6 text-center">
+          <p className="text-xs">
+            Ensure your camera is enabled and has sufficient lighting.
+          </p>
+        </footer>
+      </div>
+    </>
   );
 };
 
