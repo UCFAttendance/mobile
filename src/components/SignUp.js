@@ -5,8 +5,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 const SignUp = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    // firstName: "",
-    // lastName: "",
+    //fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -61,8 +60,7 @@ const SignUp = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            // first_name: formData.firstName,
-            // last_name: formData.lastName,
+            //full_name: formData.fullName,
             email: formData.email,
             password1: formData.password,
             password2: formData.confirmPassword
@@ -157,35 +155,20 @@ const SignUp = () => {
           flexDirection: "column",
         }}
       >
-        {/* First Name */}
+        {/* Full Name */}
         {/* <div style={{ marginBottom: "15px" }}>
-          <label htmlFor="firstName" style={labelStyle}>
-            First Name
+          <label htmlFor="fullName" style={labelStyle}>
+            Full Name
           </label>
           <input
-            id="firstName"
-            name="firstName"
+            id="fullName"
+            name="fullName"
             type="text"
             required
-            value={formData.firstName}
+            value={formData.fullName}
             onChange={handleInputChange}
             style={inputStyle}
-          />
-        </div> */}
-
-        {/* Last Name */}
-        {/* <div style={{ marginBottom: "15px" }}>
-          <label htmlFor="lastName" style={labelStyle}>
-            Last Name
-          </label>
-          <input
-            id="lastName"
-            name="lastName"
-            type="text"
-            required
-            value={formData.lastName}
-            onChange={handleInputChange}
-            style={inputStyle}
+            placeholder="Enter your full name"
           />
         </div> */}
 
