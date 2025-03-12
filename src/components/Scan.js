@@ -113,7 +113,7 @@ const Scan = () => {
       const startFrontCamera = async () => {
         try {
           const frontStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "user" } },
+            video: { facingMode: { exact: "user" } },
           });
           console.log(
             "[useEffect faceMode] Got front camera stream:",
