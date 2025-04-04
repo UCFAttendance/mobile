@@ -73,7 +73,7 @@ const ScanQR = () => {
 
     return () => {
       console.log("[useEffect cleanup] Cleaning up...");
-      stopCamera();
+      // stopCamera();
     };
   }, [forceRender]); // Add forceRender to dependency array to re-run on toggle
 
@@ -176,7 +176,7 @@ const ScanQR = () => {
             setFaceImageUploadUrl(response.data.face_image_upload_url);
             setIsFaceMode(true);
           } else {
-            stopCamera();
+            // stopCamera();
             setTimeout(() => {
               window.location.replace("/student/dashboard?refresh=" + Date.now());
             }, 3000);
@@ -216,7 +216,7 @@ const ScanQR = () => {
                 setFaceImageUploadUrl(retryResponse.data.face_image_upload_url);
                 setIsFaceMode(true);
               } else {
-                stopCamera();
+                // stopCamera();
                 setTimeout(() => {
                   window.location.replace("/student/dashboard?refresh=" + Date.now());
                 }, 3000);
@@ -289,7 +289,7 @@ const ScanQR = () => {
       if (response.status === 200) {
         toast.success("Face image uploaded successfully!");
         setIsImageUploaded(true);
-        stopCamera();
+        // stopCamera();
         setTimeout(() => {
           window.location.replace("/student/dashboard?refresh=" + Date.now());
         }, 3000);
